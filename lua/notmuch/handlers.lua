@@ -30,98 +30,102 @@ H.default_view_handler = function(attachment)
   local path = attachment.path -- Already expanded, careful to escape
 
   -- Helper function to "try" commands in order until one works
-  local function try_commands(commands)
-    for _, cmd in ipairs(commands) do
-      -- Check if the tool exists
-      if vim.fn.executable(cmd.tool) == 1 then
-        local output
-        local success
-        local command = cmd.command(path)
-        if type(command) == 'table' then
-          local obj = vim.system(command):wait()
-          output = obj.stdout
-          success = (obj.code == 0)
-        else
-          output = vim.fn.system(command)
-          success = (vim.v.shell_error == 0)
-        end
-
-        if success then
-          return output
-        end
-      end
-    end
-    return nil
+  local try_commands = function(arg)
+    return require("notmuch.util").try_commands(arg, path)
   end
 
   -- Detect file type
-  local filetype = vim.fn.system({ 'file', '--mime-type', '-b', path }):gsub('%s+$', '')
-  local ext = path:match('%.([^%.]+)$') or ''
+  local filetype = vim.fn.system({ "file", "--mime-type", "-b", path }):gsub("%s+$", "")
 
-  -- HTML files (most common)
-  if filetype:match('^text/html$') or ext:match('^html?$') then
-    return try_commands({
-      { tool = 'w3m',    command = function(p) return { 'w3m', '-T', 'text/html', '-dump', p } end },
-      { tool = 'lynx',   command = function(p) return { 'lynx', '-dump', '-nolist', p } end },
-      { tool = 'elinks', command = function(p) return { 'elinks', '-dump', '-no-references', p } end },
-    }) or "HTML file (install w3m, lynx, or elinks to view)"
+  local default = {
+    {
+      mime = "^text/html$",
+      desc = "HTML file (install w3m, lynx, or elinks to view)",
+      try = {
+        { tool = "w3m", command = function(p) return { "w3m", "-T", "text/html", "-dump", p } end },
+        { tool = "lynx", command = function(p) return { "lynx", "-dump", "-nolist", p } end },
+        { tool = "elinks", command = function(p) return { "elinks", "-dump", "-no-references", p } end },
+      },
+    },
+    {
+      mime = "^application/pdf$",
+      desc = "PDF file (install pdftotext or mutool to view)",
+      try = {
+        { tool = "pdftotext", command = function(p) return { "pdftotext", "-layout", p, "-" } end },
+        { tool = "mutool", command = function(p) return { "mutool", "draw", "-F", "txt", p } end },
+      },
+    },
+    {
+      mime = "^image/",
+      desc = "Image file (install chafa, viu, or exiftool to view)",
+      try = {
+        { tool = "chafa", command = function(p) return { "chafa", "--size", "80x40", p } end },
+        { tool = "catimg", command = function(p) return { "catimg", "-w", "80", p } end },
+        { tool = "viu", command = function(p) return { "viu", "-w", "80", p } end },
+        { tool = "exiftool", command = function(p) return { "exiftool", p } end },
+        { tool = "identify", command = function(p) return { "identify", "-verbose", p } end },
+      },
+    },
+    {
+      mime = "officedocument",
+      desc = "Office document (install pandoc or docx2txt to view)",
+      try = {
+        { tool = "pandoc", command = function(p) return { "pandoc", "-t", "plain", p } end },
+        { tool = "docx2txt", command = function(p) return { "docx2txt", p, "-" } end },
+      },
+    },
+    {
+      mime = "^text/markdown$",
+      try = {
+        { tool = "pandoc", command = function(p) return { "pandoc", "-t", "plain", p } end },
+        { tool = "mdcat", command = function(p) return { "mdcat", p } end },
+        { tool = "cat", command = function(p) return { "cat", p } end },
+      },
+    },
+    {
+      mime = "zip",
+      try = {
+        { tool = "zip", command = function(p) return { "unzip", "-l", p } end },
+      },
+    },
+    {
+      mime = "tar",
+      try = {
+        { tool = "tar", command = function(p) return { "tar", "-tvf", p } end },
+      },
+    },
+    {
+      mime = "^text/",
+      try = {
+        { tool = "cat", command = function(p) return { "cat", p } end },
+      },
+    },
+    {
+      mime = "",
+      desc = string.format(
+        "Unable to view binary file\nType: %s\nPath: %s",
+        filetype,
+        path
+      ),
+      try = {
+        { tool = "strings", command = function(p) return { "strings", p } end },
+      },
+    },
+  }
+
+  -- ensure user_config overrides default
+  local user_config = require("notmuch.config").options.view_handlers
+  local handlers = vim.iter({ user_config, default }):flatten():totable()
+
+  for _, tbl in ipairs(handlers) do
+    if filetype:match(tbl.mime) then
+      return try_commands(tbl.try) or tbl.desc or ""
+    end
   end
 
-  -- PDF files
-  if filetype:match('^application/pdf$') or ext == 'pdf' then
-    return try_commands({
-      { tool = 'pdftotext', command = function(p) return { 'pdftotext', '-layout', p, '-' } end },
-      { tool = 'mutool',    command = function(p) return { 'mutool', 'draw', '-F', 'txt', p } end },
-    }) or "PDF file (install pdftotext or mutool to view)"
-  end
-
-  -- Images
-  if filetype:match('^image/') then
-    return try_commands({
-      { tool = 'chafa',    command = function(p) return { 'chafa', '--size', '80x40', p } end },
-      { tool = 'catimg',   command = function(p) return { 'catimg', '-w', '80', p } end },
-      { tool = 'viu',      command = function(p) return { 'viu', '-w', '80', p } end },
-      { tool = 'exiftool', command = function(p) return { 'exiftool', p } end },
-      { tool = 'identify', command = function(p) return { 'identify', '-verbose', p } end },
-    }) or "Image file (install chafa, viu, or exiftool to view)"
-  end
-
-  -- Office documents (docx, xlsx, pptx)
-  if filetype:match('officedocument') or ext:match('^(docx?|xlsx?|pptx?)$') then
-    return try_commands({
-      { tool = 'pandoc',   command = function(p) return { 'pandoc', '-t', 'plain', p } end },
-      { tool = 'docx2txt', command = function(p) return { 'docx2txt', p, '-' } end },
-    }) or "Office document (install pandoc or docx2txt to view)"
-  end
-
-  -- Markdown
-  if filetype:match('^text/markdown$') or ext:match('^md$') then
-    return try_commands({
-      { tool = 'pandoc', command = function(p) return { 'pandoc', '-t', 'plain', p } end },
-      { tool = 'mdcat',  command = function(p) return { 'mdcat', p } end },
-    }) or vim.fn.system({ 'cat', path })
-  end
-
-  -- Archives (zip, tar, tar.gz, etc.)
-  if filetype:match('zip') or ext == 'zip' then
-    return vim.fn.system({ 'unzip', '-l', path })
-  end
-  if filetype:match('tar') or ext:match('^tar%.?') then
-    return vim.fn.system({ 'tar', '-tvf', path })
-  end
-
-  -- Plain text (fallback for text/*)
-  if filetype:match('^text/') then
-    return vim.fn.system({ 'cat', path })
-  end
-
-  return try_commands({
-    { tool = 'strings', command = function(p) return { 'strings', p } end },
-  }) or string.format(
-    "Unable to view binary file\nType: %s\nPath: %s",
-    filetype,
-    path
-  )
+  return "No handler found for this filetype"
 end
 
 return H
+
+-- vim: tabstop=2:shiftwidth=2:expandtab

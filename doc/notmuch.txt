@@ -300,12 +300,58 @@ option will be listed with its default value.
     - `xdg-open` on Linux
     - `start` on Windows
 
-  Example customization: >
+  Example customization: >lua
 
     require('notmuch').setup({
       open_handler = function(attachment)
         vim.fn.system({ 'my-opener', attachment.path })
       end,
+    })
+<
+
+*view_handlers*
+  table of handlers to try for converting attachments to text for display
+  in a floating terminal within Neovim. Each handler contains the following keys:
+  - `mime` (string, mandatory): a |lua-pattern| against which the file's mime type
+    (obtained through `file --mime-type --brief`) is matched.
+  - `desc` (string, optional) an optional description, which is used as a fallback
+  - `try` (table): contains the actual commands that will be runned; each element
+    must be a table containing:
+    - one of `callback` or `command`.
+      A callback is a lua function taking a path as input
+      and returning:
+      - `success` (boolean): wether the command succeeded
+      - `output` (string, necessary only if success is true):
+      - `error` (string): an optional error message to be displayed if `success` is false
+        and `verbose` is true
+      A command is a function taking a path as its argument and returning either a
+      string (in which case `vim.fn.system` is used), either a table of strings (in
+      which case `vim.system` is used) either a table of tables of strings (the
+      commands will be runned one after the other through `vim.system`, the output
+      of the previous becoming the input of the next; if one fails, subsequent
+      command execution is stopped).
+    - `tool` (optional): used in notifications
+    - `verbose` (boolean): wether to notify on failure
+
+  Example customization: >lua
+
+    require('notmuch').setup({
+      view_handlers = {
+        {
+          mime = "^application/pdf$",
+          desc = "View with poppler and kitty image protocol",
+          try = {
+            {
+              mime = "^application/x-pie-executable$"
+              tool = "hexyl",
+              verbose = true,
+              command = function(p)
+                return { "hexyl", "--color=never", p }
+              end,
+            },
+          },
+        },
+      },
     })
 <
 
@@ -320,7 +366,7 @@ option will be listed with its default value.
     HTML, pdftotext/mutool for PDF) and falls back gracefully if tools aren't
     available.
 
-  Example customization: >
+  Example customization: >lua
 
     require('notmuch').setup({
       view_handler = function(attachment)
@@ -400,7 +446,7 @@ option will be listed with its default value.
   Default value:
     `false`
 
-  Example: >
+  Example: >lua
 
     require('notmuch').setup({
       suppress_deprecation_warning = true,
@@ -423,7 +469,7 @@ option will be listed with its default value.
   Default value:
     `false`
 
-  Example: >
+  Example: >lua
 
     require('notmuch').setup({
       render_html_body = true,
@@ -557,7 +603,7 @@ interact with your email directly from the editor.
     `{index}/{total} {sender_name} [📎{attachment_count}]`
     Example: "2/5 John Doe 📎1"
 
-  Example statusline integration with lualine: >
+  Example statusline integration with lualine: >lua
 
     require('lualine').setup({
       sections = {
@@ -570,7 +616,7 @@ interact with your email directly from the editor.
       },
     })
 <
-  Example custom keymap using buffer variables: >
+  Example custom keymap using buffer variables: >lua
 
     vim.keymap.set('n', '<leader>mt', function()
       local thread = vim.b.notmuch_thread

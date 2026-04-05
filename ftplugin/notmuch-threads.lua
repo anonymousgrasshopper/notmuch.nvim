@@ -29,6 +29,13 @@ end, {
   range = true,
   nargs = "+",
 })
+vim.api.nvim_buf_create_user_command(0, "TagToggle", function(arg)
+  require("notmuch.tag").thread_toggle_tag(arg.args, arg.line1, arg.line2)
+end, {
+  complete = require("notmuch.completion").comp_tags,
+  range = true,
+  nargs = "+",
+})
 
 vim.keymap.set("n", "<CR>", nm.show_thread, { buffer = true })
 vim.keymap.set("n", "r", r.refresh_search_buffer, { buffer = true })

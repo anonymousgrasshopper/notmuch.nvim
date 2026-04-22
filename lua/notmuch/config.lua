@@ -55,6 +55,7 @@ C.defaults = function()
       --   buffer: Structured async output in dedicated buffer, no stdin (default)
       --   terminal: Real PTY terminal with stdin support for GPG/OAuth prompts
     },
+    queries = {}, -- Saved/pinned search queries shown in dashboard above Tags (hidden when empty)
     suppress_deprecation_warning = false, -- Used for API deprecation warning suppression
     render_html_body = false, -- True means prioritize displaying rendered HTML
     open_handler = function(attachment)
@@ -99,6 +100,25 @@ C.setup = function(opts)
   end
 
   C.options = vim.tbl_deep_extend('force', defaults, options)
+
+  -- Validate and normalise the queries list
+  if C.options.queries and #C.options.queries > 0 then
+    local valid = {}
+    for _, q in ipairs(C.options.queries) do
+      if type(q) == 'table'
+        and type(q.name) == 'string' and q.name ~= ''
+        and type(q.query) == 'string' and q.query ~= '' then
+        table.insert(valid, { name = q.name, query = q.query })
+      else
+        vim.notify(
+          'notmuch.nvim: skipping invalid query entry — each entry must be { name = "...", query = "..." }',
+          vim.log.levels.WARN
+        )
+      end
+    end
+    C.options.queries = valid
+  end
+
   return true
 end
 

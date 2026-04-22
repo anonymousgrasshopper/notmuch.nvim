@@ -261,22 +261,111 @@ nm.show_all_tags = function()
   local db = require 'notmuch.cnotmuch' (config.options.notmuch_db_path, 0)
   local tags = db.get_all_tags()
   db.close()
+  local queries = config.options.queries or {}
 
-  -- Create dedicated buffer. Content is fetched using `db.get_all_tags()`
+  -- Build buffer content.  We track which 1-indexed lines hold query entries
+  -- so the <Enter> handler can dispatch to the right search term.
+  local all_lines = {}
+  local saved_query_map = {} -- 1-indexed buffer line → query string
+
+  if #queries > 0 then
+    table.insert(all_lines, "Saved/Pinned:")
+    table.insert(all_lines, "-------------")
+    for _, q in ipairs(queries) do
+      table.insert(all_lines, "  " .. q.name .. " -- `" .. q.query .. "`")
+    end
+    table.insert(all_lines, "")
+    table.insert(all_lines, "Tags:")
+    table.insert(all_lines, "-----")
+  end
+
+  for _, tag in ipairs(tags) do
+    table.insert(all_lines, tag)
+  end
+
+  -- Create dedicated buffer
   local buf = v.nvim_create_buf(true, true)
   v.nvim_buf_set_name(buf, "Tags")
   v.nvim_win_set_buf(0, buf)
-  v.nvim_buf_set_lines(buf, 0, 0, true, tags)
+  v.nvim_buf_set_lines(buf, 0, 0, true, all_lines)
 
-  -- Insert help hints at the top of the buffer
+  -- Insert help hints at the top of the buffer (prepended, so all_lines shifts by 2)
   local hint_text = "Hints: <Enter>: Show threads | q: Close | r: Refresh | %: Refresh maildir | c: Count messages"
   v.nvim_buf_set_lines(buf, 0, 0, false, { hint_text, "" })
 
-  -- Clean up the buffer and set the cursor to the head
-  v.nvim_win_set_cursor(0, { 3, 0 })
+  -- After prepending two lines (hints + blank), all_lines[i] is now buffer line (i+2).
+  -- Saved queries begin at all_lines[3] (1-indexed within all_lines) → buffer line 5.
+  --   all_lines[1] = "Saved/Pinned:"  → buffer line 3
+  --   all_lines[2] = "-------------"  → buffer line 4
+  --   all_lines[2+j] = queries[j]     → buffer line 4+j   (j = 1..#queries)
+  if #queries > 0 then
+    for j, q in ipairs(queries) do
+      saved_query_map[4 + j] = q.query
+    end
+  end
+  vim.b.notmuch_saved_queries = saved_query_map
+
+  -- Place cursor on first actionable line
+  local first_line = #queries > 0 and 5 or 3
+  v.nvim_win_set_cursor(0, { first_line, 0 })
   v.nvim_buf_set_lines(buf, -2, -1, true, {})
   vim.bo.filetype = "notmuch-hello"
   vim.bo.modifiable = false
+
+end
+
+--- Handles `c` (count) on the notmuch-hello dashboard
+--
+-- Resolves the query for the current line the same way as open_hello_line():
+-- saved/pinned entries use their stored query; plain tag lines use "tag:<name>".
+-- Header, separator, and blank lines are silently ignored.
+--
+-- @usage  called by ftplugin/notmuch-hello.vim via c
+nm.count_hello_line = function()
+  local lnum = vim.fn.line('.')
+  local query_map = vim.b.notmuch_saved_queries or {}
+
+  local query
+  if query_map[lnum] then
+    query = query_map[lnum]
+  else
+    local line = v.nvim_get_current_line()
+    if line == '' or line:match('^%s*%-+%s*$') or line:match('^%u%a*.*:$') then
+      return
+    end
+    query = "tag:" .. line
+  end
+
+  print(nm.count(query))
+end
+
+--- Handles <Enter> on the notmuch-hello dashboard
+--
+-- Lines inside the Saved/Pinned section carry a raw query string stored in
+-- `vim.b.notmuch_saved_queries` (keyed by 1-indexed line number).  All other
+-- actionable lines are bare tag names and are searched with "tag:<name>".
+-- Header, separator, and blank lines are silently ignored.
+--
+-- @usage  called by ftplugin/notmuch-hello.vim via <CR>
+nm.open_hello_line = function()
+  local lnum = vim.fn.line('.')
+  local query_map = vim.b.notmuch_saved_queries or {}
+
+  if query_map[lnum] then
+    -- Saved/pinned query line
+    nm.search_terms(query_map[lnum])
+    return
+  end
+
+  local line = v.nvim_get_current_line()
+
+  -- Skip non-actionable lines: blank, separator ("---"), section headers ("Word:")
+  if line == '' or line:match('^%s*%-+%s*$') or line:match('^%u%a*.*:$') then
+    return
+  end
+
+  -- Regular tag line
+  nm.search_terms("tag:" .. line)
 end
 
 return nm

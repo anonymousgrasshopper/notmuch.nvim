@@ -2,6 +2,21 @@ syntax match nmHelloTags "^.*$"
 highlight link nmHelloTags Include
 
 " ----------------------------------------------------------
+" Saved/Pinned queries section
+" ----------------------------------------------------------
+
+syntax match nmSavedHeader   "^Saved/Pinned:$"
+syntax match nmSavedSep      "^-\+$"
+syntax match nmSavedName     "^\s\+\zs.\{-}\ze -- "         contained
+syntax match nmSavedQueryStr "`[^`]*`"                       contained
+syntax match nmSavedLine     "^\s\+.\+ -- `[^`]*`$"         contains=nmSavedName,nmSavedQueryStr
+
+highlight link nmSavedHeader   Title
+highlight link nmSavedSep      Comment
+highlight link nmSavedName     Identifier
+highlight link nmSavedQueryStr Statement
+
+" ----------------------------------------------------------
 " nmHints:
 " First line always contains the Hints with key combinations
 " ----------------------------------------------------------

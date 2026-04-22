@@ -14,6 +14,7 @@ vim.api.nvim_buf_create_user_command(0, "DelThread", function(arg)
   vim.opt_local.modifiable = false
 end, {
   range = true,
+  force = true,
 })
 vim.api.nvim_buf_create_user_command(0, "TagAdd", function(arg)
   tag.thread_add_tag(arg.args, arg.line1, arg.line2)
@@ -21,6 +22,7 @@ end, {
   complete = require("notmuch.completion").comp_tags,
   range = true,
   nargs = "+",
+  force = true,
 })
 vim.api.nvim_buf_create_user_command(0, "TagRm", function(arg)
   tag.thread_rm_tag(arg.args, arg.line1, arg.line2)
@@ -28,6 +30,7 @@ end, {
   complete = require("notmuch.completion").comp_tags,
   range = true,
   nargs = "+",
+  force = true,
 })
 vim.api.nvim_buf_create_user_command(0, "TagToggle", function(arg)
   require("notmuch.tag").thread_toggle_tag(arg.args, arg.line1, arg.line2)
@@ -35,6 +38,7 @@ end, {
   complete = require("notmuch.completion").comp_tags,
   range = true,
   nargs = "+",
+  force = true,
 })
 
 vim.keymap.set("n", "<CR>", nm.show_thread, { buffer = true })

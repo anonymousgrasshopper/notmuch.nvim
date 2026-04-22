@@ -132,6 +132,7 @@ You can configure several global options to tailor the plugin's behavior:
 | `notmuch_db_path`  | Directory containing the `.notmuch/` dir                                        | From `notmuch config`           |
 | `maildir_sync_cmd` | Bash command to run for syncing maildir                                         | `mbsync -a`                     |
 | `sync.sync_mode`   | Sync display mode: `"buffer"`, `"background"`, or `"terminal"` (PTY with stdin) | `buffer`                        |
+| `queries`          | Saved/pinned queries shown at top of `:Notmuch` dashboard; hidden when empty    | `{}`                            |
 | `keymaps`          | Configure any (WIP) command's keymap                                            | See `config.lua`[1]             |
 | `open_handler`     | Callback function for opening attachments                                       | Runs OS-aware `open`[2]         |
 | `view_handler`     | Callback function for converting attachments to text to view in floating window | See `default_view_handler()`[2] |
@@ -156,6 +157,11 @@ Example configuration in plugin manager (lazy.nvim):
             sendmail = "<C-g><C-g>",
         },
         render_html_body = true, -- Render HTML emails inline (requires w3m)
+        queries = {
+            { name = "📤 Sent today",    query = "tag:sent and date:today" },
+            { name = "⚠️ IMPORTANT",     query = "tag:flagged or tag:pr or tag:urgent" },
+            { name = "⌛ Overdue (+3d)", query = "tag:inbox and date:..3d" },
+        },
     },
 },
 ```

@@ -196,9 +196,11 @@ Let's showcase the two main commands that give the user a window into the
 Notmuch.nvim plugin and the local mail system to search and browse.
 
                                                     *:Notmuch*
-:Notmuch             Shows a list of tags from the notmuch database in a new
-                     buffer. Pressing <CR> on any tag will search the buffer
-		     for all threads with that tag.
+:Notmuch             Opens the dashboard in a new buffer. The dashboard shows
+                     an optional Saved/Pinned section (see |queries|) followed
+		     by a list of all tags in the database. Pressing <CR> on
+		     a saved query runs that query; pressing <CR> on a tag
+		     searches for all threads with that tag.
 
 		     Note: I recommend setting up a key mapping that invokes
 		     this command. That way you can access your notmuch mail
@@ -335,6 +337,28 @@ option will be listed with its default value.
   Default value:
     See `config.lua` for plugin defaults.
 
+*queries*
+  A list of saved/pinned search queries shown at the top of the |:Notmuch|
+  dashboard above the tag list. Each entry is a table with `name` (display
+  label) and `query` (notmuch search term) fields. Pressing <CR> on any
+  entry runs the corresponding query; `c` counts its threads.
+
+  The Saved/Pinned section is hidden automatically when the list is empty.
+
+  Default value:
+    `{}` (section hidden)
+
+  Example: >
+
+    require('notmuch').setup({
+      queries = {
+        { name = "📤 Sent today",    query = "tag:sent and date:today" },
+        { name = "⚠️ IMPORTANT",     query = "tag:flagged or tag:pr or tag:urgent" },
+        { name = "⌛ Overdue (+3d)", query = "tag:inbox and date:..3d" },
+      },
+    })
+<
+
 *suppress_deprecation_warning*
   Controls whether the plugin shows a warning notification when the installed
   version of notmuch uses the deprecated `notmuch_database_open` API (versions
@@ -419,7 +443,8 @@ related to buffers:
 - *Buffer Types* ~
   Notmuch.nvim utilizes different buffer types for distinct functionalities:
   - *Tags Buffer*:
-    Displays a list of all tags in the database.
+    Displays an optional Saved/Pinned section (configurable via |queries|)
+    followed by a list of all tags in the database.
   - *Threads Buffer*:
     Lists threads matching a search query.
   - *Thread View Buffer*:
@@ -430,7 +455,8 @@ related to buffers:
     saving, viewing within nvim, or opening externally.
 
 - *Buffer Navigation* ~
-  - Pressing <CR> on a tag in the Tags Buffer initiates a search for threads 
+  - Pressing <CR> on a saved query in the Tags Buffer runs that query.
+  - Pressing <CR> on a tag in the Tags Buffer initiates a search for threads
     with that tag.
   - In the Threads buffer, <CR> opens the selected thread in a Thread View
     buffer.
@@ -487,6 +513,12 @@ interact with your email directly from the editor.
     |CursorMoved| autocmd. Contains all fields from notmuch_messages plus:
     - `index`: 1-based position in the thread (e.g., 2 of 5)
     - `total`: Total message count
+
+  *vim.b.notmuch_saved_queries*
+    Set on the Tags Buffer (notmuch-hello filetype). A map of
+    `{line_number → query_string}` used internally by `open_hello_line()` to
+    dispatch <CR> on Saved/Pinned entries to the correct notmuch search term.
+    Populated by `show_all_tags()` and keyed by 1-based buffer line number.
 
   *vim.b.notmuch_status*
     Pre-formatted string suitable for statusline display. Format:

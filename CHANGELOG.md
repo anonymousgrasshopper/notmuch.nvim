@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test setup and cleanup scripts for generated notmuch state under `tests/tmp`
 - `Makefile` targets for dependency checks, test database setup, test execution, cleanup, and CI entrypoint (`make check`)
 - GitHub Actions workflow to run the test suite on pull requests, pushes to `main`/`master`, and manual dispatches
+- New `thread_view_mode` config option for controlling message display in thread view:
+  - `"threaded"` preserves the original notmuch thread tree structure with reply nesting and indentation
+  - `"newest-first"` flattens messages and sorts them chronologically newest to oldest
+  - `"oldest-first"` flattens messages and sorts them chronologically oldest to newest
 
 ### Changed
 

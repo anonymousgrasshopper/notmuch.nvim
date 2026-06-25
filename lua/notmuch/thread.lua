@@ -476,41 +476,42 @@ T.show_thread = function(threadid)
 
   -- Build buffer lines (also builds accumulated thread metadata)
   local lines = {}
-  
-  -- Check if we need to sort messages by timestamp
-  local config = require('notmuch.config')
-  local should_reverse = config.options.message_order == "newest-first"
-  
-  if should_reverse then
-    -- Flatten all messages in the thread tree with their timestamps
-    local function flatten_messages(nodes, depth, flat_list)
+
+  local thread_view_mode = config.options.thread_view_mode or "threaded"
+
+  if thread_view_mode == "newest-first" or thread_view_mode == "oldest-first" then
+    -- Flatten all messages in the thread tree with their timestamps.
+    local function flatten_messages(nodes, flat_list)
       for _, node in ipairs(nodes) do
         local msg = node[1]
         local replies = node[2] or {}
         table.insert(flat_list, {
           node = node,
-          depth = depth,
-          timestamp = msg.timestamp or 0
+          timestamp = msg.timestamp or 0,
         })
         if #replies > 0 then
-          flatten_messages(replies, depth + 1, flat_list)
+          flatten_messages(replies, flat_list)
         end
       end
     end
-    
-    -- Flatten all messages
+
     local flat_messages = {}
-    flatten_messages(thread, 0, flat_messages)
-    
-    -- Sort by timestamp (newest first)
-    table.sort(flat_messages, function(a, b) return a.timestamp > b.timestamp end)
-    
-    -- Build lines for sorted messages (with depth set to 0 to remove indentation, skip_replies = true)
+    flatten_messages(thread, flat_messages)
+
+    -- Sort flattened messages chronologically.
+    table.sort(flat_messages, function(a, b)
+      if thread_view_mode == "newest-first" then
+        return a.timestamp > b.timestamp
+      end
+      return a.timestamp < b.timestamp
+    end)
+
+    -- Build lines for sorted messages with depth set to 0 to remove indentation.
     for _, item in ipairs(flat_messages) do
       build_message_lines(item.node, 0, lines, metadata, true)
     end
   else
-    -- Process messages in original order (oldest first, maintaining hierarchy)
+    -- Process messages in original notmuch thread tree order, maintaining hierarchy.
     for _, node in ipairs(thread) do
       build_message_lines(node, 0, lines, metadata, false)
     end

@@ -137,6 +137,7 @@ You can configure several global options to tailor the plugin's behavior:
 | `open_handler`     | Callback function for opening attachments                                       | Runs OS-aware `open`[2]         |
 | `view_handler`     | Callback function for converting attachments to text to view in floating window | See `default_view_handler()`[2] |
 | `render_html_body` | Render HTML email bodies inline using `w3m` (requires `w3m` installed)          | `false`                         |
+| `thread_view_mode` | Thread view mode: `"threaded"`, `"newest-first"`, or `"oldest-first"`        | `"threaded"`                   |
 | `suppress_deprecation_warning` | Suppress the warning shown when using deprecated notmuch API (< 0.32) | `false`                         |
 
 [1]: https://github.com/yousefakbar/notmuch.nvim/blob/main/lua/notmuch/config.lua
@@ -162,6 +163,7 @@ Example configuration in plugin manager (lazy.nvim):
             { name = "⚠️ IMPORTANT",     query = "tag:flagged or tag:pr or tag:urgent" },
             { name = "⌛ Overdue (+3d)", query = "tag:inbox and date:..3d" },
         },
+        thread_view_mode = "threaded", -- OR "newest-first" OR "oldest-first"
     },
 },
 ```

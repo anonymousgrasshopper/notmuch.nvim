@@ -359,6 +359,32 @@ option will be listed with its default value.
     })
 <
 
+*thread_view_mode*
+  Controls how messages are displayed in thread view. This option accepts the
+  following values:
+
+  - `"threaded"` (default):
+    Preserves the original notmuch thread tree structure, including reply
+    nesting and indentation.
+
+  - `"newest-first"`:
+    Flattens all messages in the thread and sorts them chronologically with
+    the newest message first.
+
+  - `"oldest-first"`:
+    Flattens all messages in the thread and sorts them chronologically with
+    the oldest message first.
+
+  Default value:
+    `"threaded"`
+
+  Example: >
+
+    require('notmuch').setup({
+      thread_view_mode = "newest-first",
+    })
+<
+
 *suppress_deprecation_warning*
   Controls whether the plugin shows a warning notification when the installed
   version of notmuch uses the deprecated `notmuch_database_open` API (versions

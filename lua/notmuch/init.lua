@@ -325,8 +325,13 @@ nm.count_hello_line = function()
   local lnum = vim.fn.line('.')
   local query_map = vim.b.notmuch_saved_queries or {}
 
+  -- If on line 1 (hints line) then do nothing
+  if lnum == 1 then
+    return
+  end
+
   local query
-  if query_map[lnum] then
+  if query_map[lnum] and query_map[lnum] ~= vim.NIL then
     query = query_map[lnum]
   else
     local line = v.nvim_get_current_line()
@@ -351,7 +356,12 @@ nm.open_hello_line = function()
   local lnum = vim.fn.line('.')
   local query_map = vim.b.notmuch_saved_queries or {}
 
-  if query_map[lnum] then
+  -- If on line 1 (hints line) then do nothing
+  if lnum == 1 then
+    return
+  end
+
+  if query_map[lnum] and query_map[lnum] ~= vim.NIL then
     -- Saved/pinned query line
     nm.search_terms(query_map[lnum])
     return

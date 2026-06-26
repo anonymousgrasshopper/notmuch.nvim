@@ -6,15 +6,17 @@ highlight link nmHelloTags Include
 " ----------------------------------------------------------
 
 syntax match nmSavedHeader   "^Saved/Pinned:$"
+syntax match nmTagsHeader   "^Tags:$"
 syntax match nmSavedSep      "^-\+$"
 syntax match nmSavedName     "^\s\+\zs.\{-}\ze -- "         contained
 syntax match nmSavedQueryStr "`[^`]*`"                       contained
 syntax match nmSavedLine     "^\s\+.\+ -- `[^`]*`$"         contains=nmSavedName,nmSavedQueryStr
 
 highlight link nmSavedHeader   Title
-highlight link nmSavedSep      Comment
+highlight link nmTagsHeader    Title
+highlight link nmSavedSep      NonText
 highlight link nmSavedName     Identifier
-highlight link nmSavedQueryStr Statement
+highlight link nmSavedQueryStr String
 
 " ----------------------------------------------------------
 " nmHints:
@@ -29,7 +31,7 @@ syntax match nmHintsValue	"\s\+[A-Za-z0-9\ ]\+"		contained nextgroup=nmHintsDeli
 syntax match nmHintsDelimiter	"|"				contained nextgroup=nmHintsKey
 
 highlight link nmHintsIdentifier	Comment
-highlight link nmHintsKey		Include
+highlight link nmHintsKey		Special
 highlight link nmHintsKVDelimiter	Comment
 highlight link nmHintsValue		Normal
-highlight link nmHintsDelimiter		Comment
+highlight link nmHintsDelimiter		NonText

@@ -5,19 +5,19 @@ if vim.startswith(vim.fs.basename(vim.api.nvim_buf_get_name(0)), "thread:") then
   vim.opt_local.foldlevel = 0
 
   vim.api.nvim_buf_create_user_command(0, "TagAdd", function(arg)
-    tag.thread_add_tag(arg.args)
+    tag.msg_add_tag(arg.args)
   end, {
     complete = require("notmuch.completion").comp_tags,
     nargs = "+",
   })
   vim.api.nvim_buf_create_user_command(0, "TagRm", function(arg)
-    tag.thread_rm_tag(arg.args)
+    tag.msg_rm_tag(arg.args)
   end, {
     complete = require("notmuch.completion").comp_tags,
     nargs = "+",
   })
   vim.api.nvim_buf_create_user_command(0, "TagToggle", function(arg)
-    tag.thread_toggle_tag(arg.args)
+    tag.msg_toggle_tag(arg.args)
   end, {
     complete = require("notmuch.completion").comp_tags,
     nargs = "+",

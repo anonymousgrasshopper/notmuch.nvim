@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Migrated ftplugin files from Vimscript to Lua (`mail`, `notmuch-attach`, `notmuch-hello`, and `notmuch-threads`)
+- Deleting threads from the thread list now removes them from the buffer immediately
+
 ### Fixed
 
 - Attachment filenames with `/` characters are now sanitized to prevent directory path errors when saving

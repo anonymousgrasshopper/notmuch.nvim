@@ -1,8 +1,9 @@
 local H = dofile("tests/helpers.lua")
 
 local function map_callback(mode, lhs, buf)
+  local target = lhs:lower()
   for _, m in ipairs(vim.api.nvim_buf_get_keymap(buf, mode)) do
-    if m.lhs == lhs then return m.callback end
+    if m.lhs:lower() == target then return m.callback end
   end
 end
 
@@ -206,6 +207,164 @@ return {
       end)
 
       config.options.open_handler, config.options.view_handler = old_open, old_view
+      if not ok then error(err, 0) end
+    end,
+  },
+  {
+    name = "e2e compose workflow adds/removes attachment, builds MIME, and stubs msmtp",
+    run = function()
+      local send = require("notmuch.send")
+      local config = require("notmuch.config")
+      local old_confirm = vim.api.nvim_call_function
+      local old_chansend = vim.fn.chansend
+      local old_from, old_keymaps = config.options.from, config.options.keymaps
+      local sent_cmd
+      config.options.from = "E2E Sender <sender@example.com>"
+      config.options.keymaps = { sendmail = "<C-g><C-g>", attachment_window = "<C-g><C-a>" }
+      vim.api.nvim_call_function = function() return 1 end
+      vim.fn.chansend = function(job, data)
+        sent_cmd = data
+        return old_chansend(job, "exit 0\n")
+      end
+
+      local ok, err = pcall(function()
+        local attachment = H.write_file(H.tmpdir() .. "/compose-attachment.txt", "compose attachment\n")
+        send.compose("compose@example.com")
+        local main_buf = vim.api.nvim_get_current_buf()
+        H.matches(vim.api.nvim_buf_get_name(main_buf), "%-compose%.eml$")
+        vim.api.nvim_buf_set_lines(main_buf, 5, -1, false, { "Compose E2E body" })
+
+        map_callback("n", config.options.keymaps.attachment_window, main_buf)()
+        local attach_buf = vim.api.nvim_get_current_buf()
+        vim.api.nvim_buf_set_lines(attach_buf, 0, -1, false, { attachment })
+        H.same({ attachment }, vim.api.nvim_buf_get_lines(attach_buf, 0, -1, false))
+        vim.api.nvim_buf_set_lines(attach_buf, 0, -1, false, {})
+        H.eq(true, require("notmuch.util").empty_attachment_window(attach_buf))
+        vim.api.nvim_buf_set_lines(attach_buf, 0, -1, false, { attachment })
+
+        vim.api.nvim_set_current_buf(main_buf)
+        map_callback("n", config.options.keymaps.sendmail, main_buf)()
+        H.wait_until(function() return sent_cmd ~= nil end, 1500)
+        H.contains(sent_cmd, "msmtp -t --read-envelope-from")
+        H.contains(sent_cmd, " ; exit")
+        local text = table.concat(vim.api.nvim_buf_get_lines(main_buf, 0, -1, false), "\n")
+        H.contains(text, "Content-Type: multipart/mixed")
+        H.contains(text, "Content-Disposition: attachment; filename=\"compose-attachment.txt\"")
+        H.contains(text, "Compose E2E body")
+      end)
+
+      vim.api.nvim_call_function = old_confirm
+      vim.fn.chansend = old_chansend
+      config.options.from, config.options.keymaps = old_from, old_keymaps
+      if not ok then error(err, 0) end
+    end,
+  },
+  {
+    name = "e2e reply workflow generates draft, attaches file, and stubs msmtp",
+    run = function()
+      local nm = require("notmuch")
+      local send = require("notmuch.send")
+      local config = require("notmuch.config")
+      local old_confirm = vim.api.nvim_call_function
+      local old_chansend = vim.fn.chansend
+      local sent_cmd
+      vim.api.nvim_call_function = function() return 1 end
+      vim.fn.chansend = function(job, data)
+        sent_cmd = data
+        return old_chansend(job, "exit 0\n")
+      end
+
+      local ok, err = pcall(function()
+        local thread_id = H.first_thread_id("tag:inbox")
+        nm.show_thread("thread:" .. thread_id)
+        local msg = vim.b.notmuch_messages[1]
+        vim.api.nvim_win_set_cursor(0, { msg.start_line, 0 })
+        send.reply()
+        local reply_buf = vim.api.nvim_get_current_buf()
+        H.matches(vim.api.nvim_buf_get_name(reply_buf), "reply%-.*%.eml$")
+        H.contains(H.current_lines(), "Subject:")
+
+        local attachment = H.write_file(H.tmpdir() .. "/reply-attachment.txt", "reply attachment\n")
+        vim.cmd("Attach " .. vim.fn.fnameescape(attachment))
+        H.same({ vim.fn.fnamemodify(attachment, ":p") }, vim.b.notmuch_attachments)
+        map_callback("n", config.options.keymaps.sendmail, reply_buf)()
+        H.wait_until(function() return sent_cmd ~= nil end, 1500)
+        H.contains(sent_cmd, "msmtp -t --read-envelope-from")
+        local text = table.concat(vim.api.nvim_buf_get_lines(reply_buf, 0, -1, false), "\n")
+        H.contains(text, "Content-Type: multipart/mixed")
+        H.contains(text, "Content-Disposition: attachment; filename=\"reply-attachment.txt\"")
+      end)
+
+      vim.api.nvim_call_function = old_confirm
+      vim.fn.chansend = old_chansend
+      if not ok then error(err, 0) end
+    end,
+  },
+  {
+    name = "e2e sync workflow covers buffer, background, terminal, and concurrency modes",
+    run = function()
+      local sync = require("notmuch.sync")
+      local config = require("notmuch.config")
+      local old_sync_cmd, old_sync_config = config.options.maildir_sync_cmd, config.options.sync
+      local old_chansend = vim.fn.chansend
+      local old_notify = vim.notify
+      local notes, sent_cmd = {}, nil
+      vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
+      vim.fn.chansend = function(job, data)
+        sent_cmd = data
+        return old_chansend(job, "exit 0\n")
+      end
+
+      local ok, err = pcall(function()
+        sync.set_current_sync_job(nil)
+        config.options.maildir_sync_cmd = "printf sync-ok"
+        config.options.sync = { sync_mode = "buffer" }
+        sync.sync_maildir()
+        H.wait_until(function()
+          return table.concat(H.current_lines(), "\n"):find("Maildir sync finished successfully!", 1, true)
+        end, 3000)
+
+        config.options.maildir_sync_cmd = "false &&"
+        config.options.sync = { sync_mode = "buffer" }
+        sync.set_current_sync_job(nil)
+        sync.sync_maildir()
+        H.wait_until(function()
+          return table.concat(H.current_lines(), "\n"):find("Maildir sync failed!", 1, true)
+        end, 3000)
+
+        config.options.maildir_sync_cmd = "true"
+        config.options.sync = { sync_mode = "background" }
+        sync.set_current_sync_job(nil)
+        sync.sync_maildir()
+        H.wait_until(function()
+          return notes[#notes] and notes[#notes].msg:find("finished successfully", 1, true)
+        end, 3000)
+
+        config.options.maildir_sync_cmd = "printf terminal-sync"
+        config.options.sync = { sync_mode = "terminal" }
+        sync.set_current_sync_job(nil)
+        sync.sync_maildir()
+        H.eq("printf terminal-sync ; notmuch new ; exit\n", sent_cmd)
+
+        local old_create_job = sync.create_job
+        local old_is_running = sync.is_job_running
+        local created = false
+        sync.set_current_sync_job(999999)
+        sync.is_job_running = function() return true end
+        sync.create_job = function() created = true end
+        config.options.sync = { sync_mode = "background" }
+        sync.sync_maildir()
+        H.eq(false, created)
+        H.contains(notes[#notes].msg, "already running")
+        sync.create_job = old_create_job
+        sync.is_job_running = old_is_running
+        sync.set_current_sync_job(nil)
+      end)
+
+      config.options.maildir_sync_cmd, config.options.sync = old_sync_cmd, old_sync_config
+      vim.fn.chansend = old_chansend
+      vim.notify = old_notify
+      sync.set_current_sync_job(nil)
       if not ok then error(err, 0) end
     end,
   },

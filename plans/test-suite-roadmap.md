@@ -711,27 +711,27 @@ These can use a small disposable notmuch database fixture.
 
 ### Compose workflow
 
-- [ ] Compose new message.
-- [ ] Add attachment.
-- [ ] Remove attachment.
-- [ ] Build MIME message.
-- [ ] Stub `msmtp` and verify send command.
+- [x] Compose new message.
+- [x] Add attachment.
+- [x] Remove attachment.
+- [x] Build MIME message.
+- [x] Stub `msmtp` and verify send command.
 
 ### Reply workflow
 
-- [ ] Open thread.
-- [ ] Reply to message.
-- [ ] Draft generated from `notmuch reply`.
-- [ ] Attach file.
-- [ ] Send with stub `msmtp`.
+- [x] Open thread.
+- [x] Reply to message.
+- [x] Draft generated from `notmuch reply`.
+- [x] Attach file.
+- [x] Send with stub `msmtp`.
 
 ### Sync workflow
 
-- [ ] Buffer sync with fake sync command succeeds.
-- [ ] Buffer sync failure reports error.
-- [ ] Background sync succeeds.
-- [ ] Terminal sync sends command.
-- [ ] Concurrent sync is blocked.
+- [x] Buffer sync with fake sync command succeeds.
+- [x] Buffer sync failure reports error.
+- [x] Background sync succeeds.
+- [x] Terminal sync sends command.
+- [x] Concurrent sync is blocked.
 
 ---
 

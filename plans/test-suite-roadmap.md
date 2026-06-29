@@ -703,11 +703,11 @@ These can use a small disposable notmuch database fixture.
 
 ### Attachment workflow
 
-- [ ] Open message with attachment.
-- [ ] Open attachment list.
-- [ ] Save attachment to temp dir.
-- [ ] View attachment with stub handler.
-- [ ] Open attachment with stub handler.
+- [x] Open message with attachment.
+- [x] Open attachment list.
+- [x] Save attachment to temp dir.
+- [x] View attachment with stub handler.
+- [x] Open attachment with stub handler.
 
 ### Compose workflow
 

@@ -153,4 +153,60 @@ return {
       vim.cmd("TagRm " .. tag_name)
     end,
   },
+  {
+    name = "e2e attachment workflow opens, saves, views, and opens fixture attachments",
+    run = function()
+      local nm = require("notmuch")
+      local attach = require("notmuch.attach")
+      local config = require("notmuch.config")
+      local old_open, old_view = config.options.open_handler, config.options.view_handler
+      local opened, viewed
+      config.options.open_handler = function(attachment) opened = attachment.path end
+      config.options.view_handler = function(attachment)
+        viewed = attachment.path
+        return "stub viewed attachment"
+      end
+
+      local ok, err = pcall(function()
+        vim.cmd("NmSearch tag:attachment")
+        wait_for_thread_lines()
+        vim.api.nvim_win_set_cursor(0, { 2, 0 })
+        nm.show_thread()
+
+        local target
+        for _, msg in ipairs(vim.b.notmuch_messages) do
+          if msg.attachment_count and msg.attachment_count > 0 then
+            target = msg
+            break
+          end
+        end
+        H.ok(target, "expected a message with attachments")
+        vim.api.nvim_win_set_cursor(0, { target.start_line, 0 })
+
+        attach.get_attachments_from_cursor_msg()
+        H.eq("notmuch-attach", vim.bo.filetype)
+        local parts = vim.b.mime_parts_list
+        H.ok(parts and #parts > 0, "expected MIME parts in attachment buffer")
+
+        vim.api.nvim_win_set_cursor(0, { 4, 0 })
+        local dir = H.tmpdir()
+        local saved = attach.save_attachment_part(dir, false)
+        H.ok(saved and saved:find(dir, 1, true), "expected save path in temp dir")
+        H.eq(true, vim.loop.fs_stat(saved) ~= nil)
+
+        vim.api.nvim_win_set_cursor(0, { 4, 0 })
+        attach.open_attachment_part()
+        H.ok(opened and opened:find("/tmp/", 1, true), "expected open handler to receive /tmp path")
+
+        vim.api.nvim_win_set_cursor(0, { 4, 0 })
+        attach.view_attachment_part()
+        H.ok(viewed and viewed:find("/tmp/", 1, true), "expected view handler to receive /tmp path")
+        H.contains(H.current_lines(), "stub viewed attachment")
+        vim.cmd("close")
+      end)
+
+      config.options.open_handler, config.options.view_handler = old_open, old_view
+      if not ok then error(err, 0) end
+    end,
+  },
 }

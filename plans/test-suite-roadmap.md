@@ -428,7 +428,7 @@ Covered modules:
 - [x] Expands relative paths.
 - [x] Converts to absolute path.
 - [x] Rejects nonexistent file.
-- [ ] Rejects unreadable file.
+- [x] Rejects unreadable file.
 - [x] Rejects directories.
 - [x] Rejects duplicate attachment.
 - [x] Adds valid attachment to `b:notmuch_attachments`.
@@ -487,7 +487,7 @@ Covered modules:
 - [x] Base64 attachment content is encoded.
 - [x] Base64 lines are wrapped at 76 characters.
 - [x] Multipart message includes boundary.
-- [ ] Nested multipart messages render correctly.
+- [x] Nested multipart messages render correctly.
 - [x] Final boundary ends with `--`.
 - [x] Missing file after validation raises internal error.
 - [x] Random boundary length is correct.
@@ -640,7 +640,7 @@ Covered modules:
 - [x] `validate_attachment_file()` accepts regular readable file.
 - [x] Rejects missing file.
 - [x] Rejects directory.
-- [ ] Rejects unreadable/special file.
+- [x] Rejects unreadable/special file.
 - [x] `split()` works with `%S+`.
 - [x] `split_length()` wraps strings correctly.
 - [x] `find_cursor_msg_id()` finds nearest previous `id:<id> {{{`.

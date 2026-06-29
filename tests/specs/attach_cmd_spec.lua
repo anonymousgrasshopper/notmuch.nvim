@@ -31,23 +31,27 @@ return {
     end,
   },
   {
-    name = "attach_cmd.Attach rejects missing files",
+    name = "attach_cmd.Attach rejects missing and unreadable/special files",
     run = function()
       local attach_cmd = require("notmuch.attach_cmd")
       local buf = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_set_var(buf, "notmuch_attachments", {})
 
       local old_notify = vim.notify
-      local notification
+      local notifications = {}
       vim.notify = function(msg, level)
-        notification = { msg = msg, level = level }
+        table.insert(notifications, { msg = msg, level = level })
       end
 
       attach_cmd.attach_handler(buf)({ args = "/definitely/missing/notmuch.nvim" })
+      attach_cmd.attach_handler(buf)({ args = "/dev/null" })
 
       H.same({}, vim.api.nvim_buf_get_var(buf, "notmuch_attachments"))
-      H.contains(notification.msg, "Cannot attach")
-      H.eq(vim.log.levels.ERROR, notification.level)
+      H.contains(notifications[1].msg, "Cannot attach")
+      H.eq(vim.log.levels.ERROR, notifications[1].level)
+      H.contains(notifications[2].msg, "Cannot attach")
+      H.contains(notifications[2].msg, "not a regular file")
+      H.eq(vim.log.levels.ERROR, notifications[2].level)
 
       vim.notify = old_notify
       vim.api.nvim_buf_delete(buf, { force = true })

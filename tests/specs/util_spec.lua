@@ -59,6 +59,10 @@ return {
       valid, err = util.validate_attachment_file(dir .. "/missing.txt")
       H.eq(false, valid)
       H.ok(err and #err > 0, "expected missing-file error")
+
+      valid, err = util.validate_attachment_file("/dev/null")
+      H.eq(false, valid)
+      H.contains(err, "not a regular file")
     end,
   },
   {

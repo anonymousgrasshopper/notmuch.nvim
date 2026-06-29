@@ -154,4 +154,48 @@ return {
       H.contains(lines, "--BOUNDARY--")
     end,
   },
+  {
+    name = "mime.make_mime_msg renders nested multipart messages",
+    run = function()
+      local mime = require("notmuch.mime")
+      local boundaries = { "OUTER", "INNER" }
+      local old_boundary = mime.get_boundary
+      mime.get_boundary = function() return table.remove(boundaries, 1) end
+
+      local dir = H.tmpdir()
+      local plain = H.write_file(dir .. "/body.txt", "plain body\n")
+      local html = H.write_file(dir .. "/body.html", "<p>html body</p>\n")
+      local attachment = H.write_file(dir .. "/file.bin", "attached\n")
+      local lines = mime.make_mime_msg({
+        type = "multipart/mixed",
+        attributes = { From = "a@example.com", To = "b@example.com" },
+        mime = {
+          {
+            type = "multipart/alternative",
+            mime = {
+              { file = plain, type = "text/plain; charset=utf-8" },
+              { file = html, type = "text/html; charset=utf-8" },
+            },
+          },
+          { file = attachment, type = "application/octet-stream", attachment = true, encoding = "base64" },
+        },
+      })
+
+      mime.get_boundary = old_boundary
+
+      local text = table.concat(lines, "\n")
+      H.contains(text, "Content-Type: multipart/mixed;")
+      H.contains(text, " boundary=OUTER")
+      H.contains(text, "Content-Type: multipart/alternative;")
+      H.contains(text, " boundary=INNER")
+      H.contains(text, "--OUTER\nContent-Type: multipart/alternative;")
+      H.contains(text, "--INNER\nContent-Type: text/plain; charset=utf-8")
+      H.contains(text, "plain body")
+      H.contains(text, "--INNER\nContent-Type: text/html; charset=utf-8")
+      H.contains(text, "<p>html body</p>")
+      H.contains(text, "--INNER--")
+      H.contains(text, "Content-Disposition: attachment; filename=\"file.bin\"")
+      H.contains(text, "--OUTER--")
+    end,
+  },
 }

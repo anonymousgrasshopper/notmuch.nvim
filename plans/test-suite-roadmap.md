@@ -221,8 +221,7 @@ Test with fixture JSON from `notmuch show --format=json`.
 - [ ] `R` opens reply.
 - [ ] `q` wipes buffer.
 - [ ] `+`, `-`, `=` operate on current message.
-- [ ] `U` extracts URLs via `YTerm` if available.
-- [ ] `FollowPatch` opens GitHub PR patch URL.
+
 
 ---
 
@@ -364,29 +363,6 @@ Covered modules:
 - [ ] If no viewer works, returns helpful fallback message.
 
 ---
-
-## 9. URL and GitHub Patch Features
-
-Covered modules:
-
-- `lua/notmuch/attach.lua`
-- `ftplugin/mail.lua`
-
-### URL extraction
-
-- [ ] If `:YTerm` is unavailable, prints helpful message.
-- [ ] If no current message ID, returns safely.
-- [ ] Runs `YTerm "notmuch show id:<id> | urlextract"` when available.
-
-### GitHub patch following
-
-- [ ] Detects GitHub PR patch URLs.
-- [ ] Ignores non-patch URLs.
-- [ ] Opens new buffer named after patch URL.
-- [ ] Reuses existing patch buffer.
-- [ ] Runs curl to populate patch.
-- [ ] Sets filetype to `gitsendemail`.
-- [x] Sets buffer non-modifiable.
 
 ---
 

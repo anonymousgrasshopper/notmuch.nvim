@@ -302,45 +302,45 @@ Covered modules:
 
 ### Attachment list buffer
 
-- [ ] `get_attachments_from_cursor_msg()` gets current message ID.
-- [ ] Returns safely if no message ID.
-- [ ] Does not open duplicate attachment buffer for same message.
-- [ ] Creates split buffer named `id:<message-id>`.
-- [ ] Sets `buftype=nofile`.
-- [ ] Calls `notmuch show --exclude=false --part=0 --format=json`.
-- [ ] Recursively parses MIME tree.
-- [ ] Skips multipart containers.
-- [ ] Includes text/plain and text/html leaf parts.
-- [ ] Treats inline non-text as attachment.
-- [ ] Stores `mime_parts_list` buffer variable.
-- [ ] Formats part table with aligned columns.
-- [ ] Sets filetype to `notmuch-attach`.
-- [ ] Buffer is non-modifiable.
+- [x] `get_attachments_from_cursor_msg()` gets current message ID.
+- [x] Returns safely if no message ID.
+- [x] Does not open duplicate attachment buffer for same message.
+- [x] Creates split buffer named `id:<message-id>`.
+- [x] Sets `buftype=nofile`.
+- [x] Calls `notmuch show --exclude=false --part=0 --format=json`.
+- [x] Recursively parses MIME tree.
+- [x] Skips multipart containers.
+- [x] Includes text/plain and text/html leaf parts.
+- [x] Treats inline non-text as attachment.
+- [x] Stores `mime_parts_list` buffer variable.
+- [x] Formats part table with aligned columns.
+- [x] Sets filetype to `notmuch-attach`.
+- [x] Buffer is non-modifiable.
 
 ### Attachment buffer navigation/actions
 
-- [ ] Header lines do not map to a MIME part.
-- [ ] Cursor on part line resolves correct part.
-- [ ] Out-of-range cursor returns nil.
+- [x] Header lines do not map to a MIME part.
+- [x] Cursor on part line resolves correct part.
+- [x] Out-of-range cursor returns nil.
 - [ ] `q` closes attachment buffer.
 - [ ] `s` prompts and saves part.
-- [ ] `o` saves to `/tmp` and invokes configured open handler.
-- [ ] `v` saves to `/tmp`, invokes configured view handler, and opens floating window.
+- [x] `o` saves to `/tmp` and invokes configured open handler.
+- [x] `v` saves to `/tmp`, invokes configured view handler, and opens floating window.
 
 ### Saving attachments
 
-- [ ] Uses original filename when available.
-- [ ] Sanitizes slashes in filenames.
-- [ ] Generates filename from content type when missing.
-- [ ] `text/plain` becomes `.txt`.
-- [ ] Directory-only input appends filename.
-- [ ] Empty prompt cancels.
-- [ ] Nonexistent directory errors.
+- [x] Uses original filename when available.
+- [x] Sanitizes slashes in filenames.
+- [x] Generates filename from content type when missing.
+- [x] `text/plain` becomes `.txt`.
+- [x] Directory-only input appends filename.
+- [x] Empty prompt cancels.
+- [x] Nonexistent directory errors.
 - [ ] Non-writable directory errors.
-- [ ] Existing file prompts overwrite confirmation.
-- [ ] Declining overwrite cancels.
-- [ ] Successful save returns filepath.
-- [ ] Failed `notmuch show --part` returns nil.
+- [x] Existing file prompts overwrite confirmation.
+- [x] Declining overwrite cancels.
+- [x] Successful save returns filepath.
+- [x] Failed `notmuch show --part` returns nil.
 
 ### Default open handler
 
@@ -415,7 +415,7 @@ Covered modules:
 ### Reply
 
 - [ ] Gets current message ID.
-- [ ] Returns safely if no message ID.
+- [x] Returns safely if no message ID.
 - [ ] Creates `/tmp/reply-<id>.eml`.
 - [ ] Sanitizes `/` in message ID.
 - [ ] If draft does not exist, reads `notmuch reply id:<id>`.

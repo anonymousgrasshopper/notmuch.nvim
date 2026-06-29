@@ -1,0 +1,263 @@
+local H = dofile("tests/helpers.lua")
+
+local function with_current_message_id(id, fn)
+  local thread = require("notmuch.thread")
+  local old = thread.get_current_message_id
+  thread.get_current_message_id = function() return id end
+  local ok, err = pcall(fn)
+  thread.get_current_message_id = old
+  if not ok then error(err, 0) end
+end
+
+local function attachment_buf(parts, name)
+  local buf = vim.api.nvim_create_buf(true, true)
+  vim.api.nvim_win_set_buf(0, buf)
+  vim.api.nvim_buf_set_name(buf, name or "id:msg1")
+  vim.api.nvim_buf_set_var(buf, "mime_parts_list", parts)
+  local lines = {
+    "Hints: v: View | o: Open | s: Save | q: Close",
+    "",
+    "?  ID    File                                            Size",
+  }
+  for _, part in ipairs(parts) do
+    lines[#lines + 1] = tostring(part.id)
+  end
+  lines[#lines + 1] = ""
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  return buf
+end
+
+local function with_system_result(code, fn)
+  local old_system = vim.fn.system
+  vim.fn.system = function(cmd)
+    local result = old_system(code == 0 and "true" or "false")
+    return result
+  end
+  local ok, err = pcall(fn)
+  vim.fn.system = old_system
+  if not ok then error(err, 0) end
+end
+
+local function silence_print(fn)
+  local old_print = print
+  print = function() end
+  local ok, err = pcall(fn)
+  print = old_print
+  if not ok then error(err, 0) end
+end
+
+return {
+  {
+    name = "attach.get_attachments_from_cursor_msg creates formatted attachment list buffer",
+    run = function()
+      local attach = require("notmuch.attach")
+      local old_system = vim.fn.system
+      local command
+      local json = {
+        body = {
+          {
+            ["content-type"] = "multipart/mixed",
+            content = {
+              { id = 1, ["content-type"] = "text/plain", ["content-length"] = 12 },
+              { id = 2, ["content-type"] = "multipart/alternative", content = {
+                { id = 3, ["content-type"] = "text/html", ["content-length"] = 34 },
+              } },
+              { id = 4, ["content-type"] = "application/pdf", filename = "doc.pdf", ["content-disposition"] = "attachment", ["content-length"] = 2048 },
+              { id = 5, ["content-type"] = "image/png", ["content-disposition"] = "inline", ["content-length"] = 1024 },
+            },
+          },
+        },
+      }
+      vim.fn.system = function(cmd)
+        command = cmd
+        return vim.json.encode(json)
+      end
+
+      with_current_message_id("msg1", function()
+        attach.get_attachments_from_cursor_msg()
+      end)
+
+      H.eq("id:msg1", vim.api.nvim_buf_get_name(0):match("([^/]+)$"))
+      H.eq("nofile", vim.bo.buftype)
+      H.eq("notmuch-attach", vim.bo.filetype)
+      H.eq(false, vim.bo.modifiable)
+      H.eq("notmuch show --exclude=false --part=0 --format=json 'id:msg1'", command)
+
+      local parts = vim.api.nvim_buf_get_var(0, "mime_parts_list")
+      H.eq(4, #parts)
+      H.eq(1, parts[1].id)
+      H.eq("inline", parts[1].disposition)
+      H.eq(3, parts[2].id)
+      H.eq("text/html", parts[2].content_type)
+      H.eq(4, parts[3].id)
+      H.eq("doc.pdf", parts[3].filename)
+      H.eq(5, parts[4].id)
+      H.eq("attachment", parts[4].disposition)
+
+      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      H.contains(lines, "Hints: v: View")
+      H.contains(lines, "?  ID")
+      H.contains(lines, "I  1     body (text/plain)")
+      H.contains(lines, "I  3     body (text/html)")
+      H.contains(lines, "A  4     doc.pdf")
+      H.contains(lines, "A  5     body (image/png)")
+
+      vim.fn.system = old_system
+      vim.api.nvim_buf_delete(0, { force = true })
+    end,
+  },
+  {
+    name = "attach.get_attachments_from_cursor_msg returns safely without id or duplicate buffer",
+    run = function()
+      local attach = require("notmuch.attach")
+      local start_buf = vim.api.nvim_get_current_buf()
+
+      with_current_message_id(nil, function()
+        H.eq(nil, attach.get_attachments_from_cursor_msg())
+      end)
+      H.eq(start_buf, vim.api.nvim_get_current_buf())
+
+      local existing = vim.api.nvim_create_buf(true, true)
+      vim.api.nvim_buf_set_name(existing, "id:dup")
+      local old_notify = vim.notify
+      local note
+      vim.notify = function(msg, level) note = { msg = msg, level = level } end
+      with_current_message_id("dup", function()
+        H.eq(nil, attach.get_attachments_from_cursor_msg())
+      end)
+      H.contains(note.msg, "already open")
+      H.eq(vim.log.levels.WARN, note.level)
+
+      vim.notify = old_notify
+      vim.api.nvim_buf_delete(existing, { force = true })
+    end,
+  },
+  {
+    name = "attach.save_attachment_part maps cursor lines, sanitizes filenames, and saves selected part",
+    run = function()
+      local attach = require("notmuch.attach")
+      local dir = H.tmpdir()
+      local parts = {
+        { id = 2, content_type = "application/pdf", filename = "unsafe/name.pdf", disposition = "attachment", size = 1 },
+        { id = 3, content_type = "text/plain", filename = "", disposition = "inline", size = 1 },
+      }
+      local buf = attachment_buf(parts, "id:save-msg")
+      local commands = {}
+      local old_system = vim.fn.system
+      vim.fn.system = function(cmd)
+        commands[#commands + 1] = cmd
+        return old_system("true")
+      end
+
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
+      H.eq(nil, attach.save_attachment_part(dir, false))
+      vim.api.nvim_win_set_cursor(0, { 6, 0 })
+      H.eq(nil, attach.save_attachment_part(dir, false))
+
+      vim.api.nvim_win_set_cursor(0, { 4, 0 })
+      local saved
+      silence_print(function()
+        saved = attach.save_attachment_part(dir, false)
+      end)
+      H.eq(dir .. "/unsafe-name.pdf", saved)
+      H.contains(commands[#commands], "--part=2")
+      H.contains(commands[#commands], "'id:save-msg'")
+      H.contains(commands[#commands], vim.fn.shellescape(dir .. "/unsafe-name.pdf"))
+
+      vim.api.nvim_win_set_cursor(0, { 5, 0 })
+      silence_print(function()
+        saved = attach.save_attachment_part(dir, false)
+      end)
+      H.eq(dir .. "/notmuch.txt", saved)
+      H.contains(commands[#commands], "--part=3")
+
+      vim.fn.system = old_system
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end,
+  },
+  {
+    name = "attach.save_attachment_part prompt handles directories, cancellations, missing dirs, and overwrites",
+    run = function()
+      local attach = require("notmuch.attach")
+      local dir = H.tmpdir()
+      local empty_dir = H.tmpdir()
+      local existing = H.write_file(dir .. "/doc.txt", "old")
+      local missing_dir = dir .. "/missing"
+      local part = { id = 7, content_type = "text/plain", filename = "doc.txt", disposition = "attachment", size = 1 }
+      local buf = attachment_buf({ part }, "id:prompt-msg")
+      vim.api.nvim_win_set_cursor(0, { 4, 0 })
+
+      local old_input, old_confirm, old_notify, old_system = vim.fn.input, vim.fn.confirm, vim.notify, vim.fn.system
+      local notes = {}
+      vim.notify = function(msg, level) notes[#notes + 1] = { msg = msg, level = level } end
+      local inputs = { "", missing_dir .. "/doc.txt", empty_dir, existing, existing }
+      local confirms = { 2, 1 }
+      local commands = {}
+      vim.fn.input = function()
+        return table.remove(inputs, 1)
+      end
+      vim.fn.confirm = function()
+        return table.remove(confirms, 1)
+      end
+      vim.fn.system = function(cmd)
+        commands[#commands + 1] = cmd
+        return old_system("true")
+      end
+
+      H.eq(nil, attach.save_attachment_part(nil, true))
+      H.contains(notes[#notes].msg, "Save cancelled")
+      H.eq(nil, attach.save_attachment_part(nil, true))
+      H.contains(notes[#notes].msg, "Directory does not exist")
+      local saved
+      silence_print(function()
+        saved = attach.save_attachment_part(nil, true)
+      end)
+      H.eq(empty_dir .. "/doc.txt", saved)
+      H.eq(nil, attach.save_attachment_part(nil, true))
+      H.contains(notes[#notes].msg, "Save cancelled")
+      silence_print(function()
+        saved = attach.save_attachment_part(nil, true)
+      end)
+      H.eq(existing, saved)
+      H.eq(2, #commands)
+
+      vim.fn.input, vim.fn.confirm, vim.notify, vim.fn.system = old_input, old_confirm, old_notify, old_system
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end,
+  },
+  {
+    name = "attach.save/open/view handlers handle failed saves and configured callbacks",
+    run = function()
+      local attach = require("notmuch.attach")
+      local config = require("notmuch.config")
+      local part = { id = 9, content_type = "text/plain", filename = "view.txt", disposition = "attachment", size = 1 }
+      local buf = attachment_buf({ part }, "id:handler-msg")
+      vim.api.nvim_win_set_cursor(0, { 4, 0 })
+
+      silence_print(function()
+        H.eq(nil, attach.save_attachment_part("/dev/null", false))
+      end)
+
+      local old_open, old_view = config.options.open_handler, config.options.view_handler
+      local opened, viewed
+      config.options.open_handler = function(attachment) opened = attachment.path end
+      config.options.view_handler = function(attachment) viewed = attachment.path; return "viewed output" end
+
+      with_system_result(0, function()
+        silence_print(function()
+          attach.open_attachment_part()
+        end)
+        H.eq("/tmp/view.txt", opened)
+        silence_print(function()
+          attach.view_attachment_part()
+        end)
+        H.eq("/tmp/view.txt", viewed)
+        H.contains(vim.api.nvim_buf_get_lines(0, 0, -1, false), "viewed output")
+        vim.cmd("close")
+      end)
+
+      config.options.open_handler, config.options.view_handler = old_open, old_view
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end,
+  },
+}

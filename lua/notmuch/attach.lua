@@ -41,10 +41,10 @@ end
 local function get_part_at_cursor()
   -- Get the buffer-local MIME parts list variable
   local bufnr = v.nvim_get_current_buf()
-  local parts_list = v.nvim_buf_get_var(bufnr, 'mime_parts_list')
+  local ok, parts_list = pcall(v.nvim_buf_get_var, bufnr, 'mime_parts_list')
 
   -- If no attachments/parts, return gracefully
-  if not parts_list then
+  if not ok or not parts_list then
     return nil
   end
 

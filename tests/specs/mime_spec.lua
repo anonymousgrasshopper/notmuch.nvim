@@ -31,6 +31,15 @@ return {
     end,
   },
   {
+    name = "mime.get_msg_attributes handles empty input",
+    run = function()
+      local mime = require("notmuch.mime")
+      local attrs, body = mime.get_msg_attributes({})
+      H.same({}, attrs)
+      H.same({}, body)
+    end,
+  },
+  {
     name = "mime.create_mime_attachments validates paths and records metadata",
     run = function()
       local mime = require("notmuch.mime")
@@ -83,6 +92,40 @@ return {
         end
       end
       H.ok(#encoded_lines > 1, "expected wrapped base64 output")
+    end,
+  },
+  {
+    name = "mime.make_mime_msg builds inline text parts",
+    run = function()
+      local mime = require("notmuch.mime")
+      local dir = H.tmpdir()
+      local file = H.write_file(dir .. "/body.txt", "hello\nworld\n")
+      local lines = mime.make_mime_msg({ file = file, type = "text/plain" })
+      H.contains(lines, "Content-Type: text/plain")
+      H.contains(lines, "Content-Transfer-Encoding: 7bit")
+      H.contains(lines, "Content-Disposition: inline")
+      H.contains(lines, "hello")
+      H.contains(lines, "world")
+    end,
+  },
+  {
+    name = "mime.make_mime_msg reports an internal error for missing files",
+    run = function()
+      local mime = require("notmuch.mime")
+      local ok, err = pcall(function()
+        mime.make_mime_msg({ file = "/definitely/missing/notmuch.nvim", type = "text/plain" })
+      end)
+      H.eq(false, ok)
+      H.contains(err, "INTERNAL ERROR")
+    end,
+  },
+  {
+    name = "mime.get_boundary returns requested length",
+    run = function()
+      local mime = require("notmuch.mime")
+      local boundary = mime.get_boundary(32)
+      H.eq(32, #boundary)
+      H.matches(boundary, "^[A-Z]+$")
     end,
   },
   {

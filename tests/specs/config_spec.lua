@@ -1,0 +1,105 @@
+local H = dofile("tests/helpers.lua")
+
+local function with_mocked_notmuch_config(values, fn)
+  local old_system = vim.fn.system
+  vim.fn.system = function(cmd)
+    local key = tostring(cmd):match("notmuch config get%s+(.+)$")
+    local value = key and values[key]
+    if value == false or value == nil then
+      return old_system("false")
+    end
+    return old_system("printf %s " .. vim.fn.shellescape(value .. "\n"))
+  end
+  local ok, err = pcall(fn)
+  vim.fn.system = old_system
+  if not ok then error(err, 0) end
+end
+
+return {
+  {
+    name = "config.setup succeeds with valid notmuch config and applies fallbacks/options",
+    run = function()
+      local config = require("notmuch.config")
+      local notes = {}
+      local old_notify = vim.notify
+      vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
+
+      with_mocked_notmuch_config({
+        ["database.path"] = "/tmp/notmuch-db",
+        ["user.name"] = false,
+        ["user.primary_email"] = false,
+      }, function()
+        local open_handler = function() end
+        local view_handler = function() end
+        H.eq(true, config.setup({
+          notmuch_db_path = "~/custom-db",
+          maildir_sync_cmd = "true",
+          open_handler = open_handler,
+          view_handler = view_handler,
+          sync = { sync_mode = "background" },
+          keymaps = { sendmail = "<F5>" },
+        }))
+        H.eq(vim.fn.expand("~/custom-db"), config.options.notmuch_db_path)
+        H.eq("User <user@localhost>", config.options.from)
+        H.eq(open_handler, config.options.open_handler)
+        H.eq(view_handler, config.options.view_handler)
+        H.eq("background", config.options.sync.sync_mode)
+        H.eq("<F5>", config.options.keymaps.sendmail)
+        H.eq("<C-g><C-a>", config.options.keymaps.attachment_window)
+      end)
+
+      H.ok(#notes > 0, "expected warning for missing user identity")
+      H.eq(vim.log.levels.WARN, notes[1].level)
+      vim.notify = old_notify
+    end,
+  },
+  {
+    name = "config.setup fails gracefully when database.path is missing",
+    run = function()
+      local config = require("notmuch.config")
+      local old_notify = vim.notify
+      local notes = {}
+      vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
+
+      with_mocked_notmuch_config({
+        ["database.path"] = false,
+        ["user.name"] = "Tester",
+        ["user.primary_email"] = "tester@example.com",
+      }, function()
+        H.eq(false, config.setup({}))
+      end)
+
+      H.ok(#notes >= 2, "expected database-path error notifications")
+      H.eq(vim.log.levels.ERROR, notes[1].level)
+      H.contains(notes[1].msg, "database.path not configured")
+      vim.notify = old_notify
+    end,
+  },
+  {
+    name = "notmuch.setup does not register commands if config setup fails",
+    run = function()
+      for _, cmd in ipairs({ "Notmuch", "NmSearch", "Inbox", "ComposeMail" }) do
+        pcall(vim.api.nvim_del_user_command, cmd)
+      end
+
+      local nm = require("notmuch")
+      local config = require("notmuch.config")
+      local old_setup = config.setup
+      config.setup = function() return false end
+      nm.setup({})
+      config.setup = old_setup
+
+      H.eq(0, vim.fn.exists(":Notmuch"))
+      H.eq(0, vim.fn.exists(":NmSearch"))
+      H.eq(0, vim.fn.exists(":Inbox"))
+      H.eq(0, vim.fn.exists(":ComposeMail"))
+
+      nm.setup({
+        notmuch_db_path = vim.fn.getcwd() .. "/tests/tmp/mail",
+        maildir_sync_cmd = "true",
+        render_html_body = false,
+        suppress_deprecation_warning = true,
+      })
+    end,
+  },
+}

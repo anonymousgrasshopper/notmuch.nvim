@@ -32,8 +32,11 @@ return {
       H.same({ "tag:inbox" }, completion.comp_search_terms("tag:i", "", 0))
       H.same({ "is:unread" }, completion.comp_search_terms("is:u", "", 0))
       H.same({ "from:alice@example.com" }, completion.comp_search_terms("from:a", "", 0))
+      H.same({ "to:bob@example.com" }, completion.comp_search_terms("to:b", "", 0))
       H.same({ "bob@example.com" }, completion.comp_address("b", "", 0))
+      H.same({ "alice@example.com", "bob@example.com" }, completion.comp_address("", "", 0))
       H.same({ "sent" }, completion.comp_tags("s", "", 0))
+      H.same({}, completion.comp_tags("zzz", "", 0))
 
       vim.fn.systemlist = old_systemlist
     end,
@@ -76,6 +79,14 @@ return {
 
       vim.system = old_system
       vim.fn.systemlist = old_systemlist
+    end,
+  },
+  {
+    name = "completion completes top-level MIME types",
+    run = function()
+      local completion = fresh_completion()
+      H.same({ "mimetype:text/" }, completion.comp_search_terms("mimetype:t", "", 0))
+      H.list_contains(completion.comp_search_terms("mimetype:", "", 0), "mimetype:application/")
     end,
   },
   {

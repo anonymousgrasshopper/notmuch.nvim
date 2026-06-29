@@ -1,0 +1,78 @@
+local H = dofile("tests/helpers.lua")
+
+local function map_rhs(mode, lhs, buf)
+  local maps = vim.api.nvim_buf_get_keymap(buf, mode)
+  for _, m in ipairs(maps) do
+    if m.lhs == lhs then return m.rhs or m.callback end
+  end
+end
+
+return {
+  {
+    name = "notmuch-hello ftplugin creates buffer-local mappings only",
+    run = function()
+      local buf = vim.api.nvim_create_buf(true, true)
+      vim.api.nvim_win_set_buf(0, buf)
+      vim.bo.filetype = "notmuch-hello"
+      vim.cmd("runtime ftplugin/notmuch-hello.lua")
+      H.ok(map_rhs("n", "<CR>", buf), "missing buffer-local <CR>")
+      H.ok(map_rhs("n", "q", buf), "missing buffer-local q")
+      for _, m in ipairs(vim.api.nvim_get_keymap("n")) do
+        H.ok(m.lhs ~= "<CR>", "ftplugin leaked a global <CR> mapping")
+      end
+    end,
+  },
+  {
+    name = "notmuch-threads ftplugin sets nowrap, commands, and mappings buffer-locally",
+    run = function()
+      local buf = vim.api.nvim_create_buf(true, true)
+      vim.api.nvim_win_set_buf(0, buf)
+      vim.bo.filetype = "notmuch-threads"
+      vim.cmd("runtime ftplugin/notmuch-threads.lua")
+      H.eq(false, vim.wo.wrap)
+      H.ok(map_rhs("n", "<CR>", buf), "missing <CR>")
+      H.ok(map_rhs("n", "dd", buf), "missing dd")
+      H.ok(map_rhs("x", "d", buf), "missing visual d")
+      local cmds = vim.api.nvim_buf_get_commands(buf, {})
+      H.ok(cmds.TagAdd, "missing TagAdd")
+      H.eq("+", cmds.TagAdd.nargs)
+      H.ok(cmds.TagRm, "missing TagRm")
+      H.ok(cmds.TagToggle, "missing TagToggle")
+      H.ok(cmds.DelThread, "missing DelThread")
+    end,
+  },
+  {
+    name = "mail ftplugin only configures thread buffers and sets fold options",
+    run = function()
+      local plain = vim.api.nvim_create_buf(true, true)
+      vim.api.nvim_win_set_buf(0, plain)
+      vim.api.nvim_buf_set_name(plain, "plain-mail")
+      vim.bo.filetype = "mail"
+      vim.cmd("runtime ftplugin/mail.lua")
+      H.eq(nil, vim.api.nvim_buf_get_commands(plain, {}).TagAdd)
+
+      local thread = vim.api.nvim_create_buf(true, true)
+      vim.api.nvim_win_set_buf(0, thread)
+      vim.api.nvim_buf_set_name(thread, "thread:abc123")
+      vim.bo.filetype = "mail"
+      vim.cmd("runtime ftplugin/mail.lua")
+      H.eq("marker", vim.wo.foldmethod)
+      H.eq(0, vim.wo.foldlevel)
+      H.ok(map_rhs("n", "a", thread), "missing attachment mapping")
+      H.ok(vim.api.nvim_buf_get_commands(thread, {}).FollowPatch, "missing FollowPatch")
+    end,
+  },
+  {
+    name = "notmuch-attach ftplugin creates attachment action mappings",
+    run = function()
+      local buf = vim.api.nvim_create_buf(true, true)
+      vim.api.nvim_win_set_buf(0, buf)
+      vim.bo.filetype = "notmuch-attach"
+      vim.cmd("runtime ftplugin/notmuch-attach.lua")
+      H.ok(map_rhs("n", "q", buf), "missing q")
+      H.ok(map_rhs("n", "s", buf), "missing s")
+      H.ok(map_rhs("n", "o", buf), "missing o")
+      H.ok(map_rhs("n", "v", buf), "missing v")
+    end,
+  },
+}

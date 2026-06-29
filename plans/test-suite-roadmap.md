@@ -1,0 +1,831 @@
+---
+id: 01KW826RP8N6P8JXNPJ00A4Y6G
+type: task
+title: 'ROADMAP: notmuch.nvim Test Suite Checklist'
+tags:
+    - '#notmuch'
+    - '#idea'
+date: 2026-06-29T00:29:42+03:00
+state: in-progress
+---
+
+Below is a realistic test roadmap/checklist for `notmuch.nvim`, organized by
+feature area and roughly mapped to the code modules that should be covered.
+
+## 0. Test Harness / Fixtures
+
+- [x] Dependency-free headless Neovim runner in `tests/run.lua`.
+- [x] Shared assertions and temp-file helpers in `tests/helpers.lua`.
+- [x] Specs organized under `tests/specs/`.
+- [x] Fixture corpora organized under `tests/fixtures/corpora/`.
+- [x] Disposable notmuch test database generated under `tests/tmp/`.
+- [x] Setup script: `tests/scripts/setup-notmuch-db.sh`.
+- [x] Cleanup script: `tests/scripts/clean.sh`.
+- [x] Generated test state ignored by git.
+
+
+## 1. Configuration and Setup
+
+Covered modules:
+
+- `lua/notmuch/config.lua`
+- `lua/notmuch/init.lua`
+
+### Setup behavior
+
+- [x] `require("notmuch").setup()` succeeds when `notmuch config` returns valid
+  values.
+- [x] Setup fails gracefully when `database.path` is missing.
+- [x] Setup warns and falls back when `user.name` or `user.primary_email` is missing.
+- [x] User options override defaults correctly.
+- [x] `notmuch_db_path` expands `~` and other paths.
+- [x] Custom `open_handler` and `view_handler` are stored and used.
+- [x] Custom keymaps are merged correctly.
+- [x] Invalid or partial `sync` config does not break defaults.
+
+### Command registration
+
+- [x] `:Notmuch` is created after setup.
+- [x] `:NmSearch` is created after setup.
+- [x] `:Inbox` is created after setup.
+- [x] `:ComposeMail` is created after setup.
+- [x] Commands are not registered if config setup fails.
+
+---
+
+## 2. Landing Page / Tags View
+
+Covered modules:
+
+- `lua/notmuch/init.lua`
+- `ftplugin/notmuch-hello.lua`
+
+### `:Notmuch` / `notmuch_hello`
+
+- [x] Opens a buffer named `Tags`.
+- [x] Reuses existing `Tags` buffer if already open.
+- [x] Displays all tags returned by `db.get_all_tags()`.
+- [x] Inserts the hints line at the top.
+- [x] Sets filetype to `notmuch-hello`.
+- [x] Sets buffer to non-modifiable.
+- [x] Places cursor on first tag, not hints.
+
+### Tag actions from hello buffer
+
+- [ ] `<CR>` on a tag runs search for `tag:<tag>`.
+- [ ] `c` counts messages for selected tag.
+- [ ] `r` refreshes the tag buffer.
+- [ ] `%` starts mail sync.
+- [ ] `C` opens compose flow.
+- [ ] `q` wipes the buffer.
+
+---
+
+## 3. Search View / Thread List
+
+Covered modules:
+
+- `lua/notmuch/init.lua`
+- `lua/notmuch/async.lua`
+- `lua/notmuch/refresh.lua`
+- `ftplugin/notmuch-threads.lua`
+
+### `:NmSearch`
+
+- [x] Empty search string returns without creating a buffer.
+- [x] `thread:<id>` search opens thread view directly.
+- [x] Search creates a buffer named exactly after the search query.
+- [x] Existing search buffer is reused without refreshing.
+- [x] Hints line is inserted.
+- [x] Filetype is set to `notmuch-threads`.
+- [x] Buffer is non-modifiable after setup.
+- [x] Cursor starts at the top.
+- [x] Completion callback prints correct number of threads.
+- [ ] Optional `jumptothreadid` moves cursor to matching thread after refresh.
+
+### Async search
+
+- [x] `notmuch search <query>` is spawned.
+- [ ] Output chunks are appended incrementally.
+- [ ] Partial lines across chunks are handled correctly.
+- [ ] Buffer is temporarily made modifiable during writes.
+- [ ] If buffer is deleted during search, process is killed or exits safely.
+- [ ] Completion callback runs after process exits.
+- [ ] Stderr errors notify the user.
+
+### Sorting
+
+- [x] `reverse_sort_threads()` preserves hints line.
+- [x] Thread result lines are reversed.
+- [ ] Handles empty result buffer.
+- [ ] Handles one-result buffer.
+
+### Search buffer keymaps/commands
+
+- [ ] `<CR>` opens selected thread.
+- [ ] `r` refreshes search buffer.
+- [ ] `o` reverses sort.
+- [ ] `%` starts sync.
+- [ ] `q` closes buffer.
+- [ ] `C` opens compose.
+- [ ] `+`, `-`, `=` operate on current thread.
+- [ ] Visual `+`, `-`, `=` operate on range.
+- [ ] `a` toggles `inbox`.
+- [ ] `A` removes `inbox unread`.
+- [ ] `x` toggles `unread`.
+- [ ] `f` toggles `flagged`.
+- [ ] `dd` marks thread deleted and removes it from buffer.
+- [ ] Visual `d` deletes selected range.
+- [ ] `D` opens deleted-thread purge flow.
+
+---
+
+## 4. Inbox Command
+
+Covered modules:
+
+- `lua/notmuch/init.lua`
+- `lua/notmuch/completion.lua`
+
+### `:Inbox`
+
+- [ ] `:Inbox` searches `tag:inbox`.
+- [ ] `:Inbox user@example.com` searches `tag:inbox to:user@example.com`.
+- [ ] Completion uses notmuch addresses.
+- [ ] Handles email addresses with special characters.
+
+---
+
+## 5. Thread View
+
+Covered modules:
+
+- `lua/notmuch/init.lua`
+- `lua/notmuch/thread.lua`
+- `ftplugin/mail.lua`
+
+### Opening threads
+
+- [ ] `show_thread()` extracts thread ID from selected search line.
+- [x] Hints line cannot be opened.
+- [x] Existing `thread:<id>` buffer is reused.
+- [x] New buffer is named `thread:<id>`.
+- [ ] Calls `notmuch.thread.show_thread(threadid)`.
+- [ ] Inserts thread lines into buffer.
+- [ ] Adds thread hints at top.
+- [x] Sets filetype to `mail`.
+- [x] Sets buffer non-modifiable.
+- [ ] Initializes cursor tracking.
+
+### Thread rendering
+
+Test with fixture JSON from `notmuch show --format=json`.
+
+- [ ] Single-message thread renders correctly.
+- [ ] Multi-message thread renders all messages.
+- [ ] Reply depth adds indentation markers.
+- [ ] Headers render `Subject`, `From`, `To`, `Cc`, `Date`.
+- [ ] Missing headers use fallbacks.
+- [x] Fold markers are placed correctly.
+- [ ] Message body text/plain renders correctly.
+- [ ] Multipart messages recurse correctly.
+- [ ] Multipart alternative prefers plain text when `render_html_body = false`.
+- [ ] HTML body shows hidden/alternative marker when rendering disabled.
+- [ ] HTML body is rendered via `w3m` when `render_html_body = true`.
+- [ ] Missing `w3m` shows helpful placeholder.
+- [ ] Failed `w3m` render shows helpful placeholder.
+- [ ] Attachments are counted and displayed in headers.
+- [ ] Attachment body parts render placeholder lines.
+- [ ] Inline non-text parts render placeholder lines.
+
+### Buffer-local metadata
+
+- [x] `vim.b.notmuch_thread` is populated.
+- [x] `vim.b.notmuch_messages` is populated.
+- [x] Message count is correct.
+- [ ] Thread tags are collected correctly.
+- [ ] Authors are collected correctly.
+- [ ] Message line positions are correct.
+- [ ] Attachment counts are correct.
+- [ ] `vim.b.notmuch_current` updates when cursor moves.
+- [ ] `vim.b.notmuch_status` is formatted correctly.
+
+### Thread keymaps/commands
+
+- [ ] `<Enter>` toggles fold.
+- [ ] `<Tab>` moves to next fold/message.
+- [ ] `<S-Tab>` moves to previous fold/message.
+- [ ] `a` opens attachment list.
+- [ ] `r` refreshes thread buffer.
+- [ ] `C` opens compose.
+- [ ] `R` opens reply.
+- [ ] `q` wipes buffer.
+- [ ] `+`, `-`, `=` operate on current message.
+- [ ] `U` extracts URLs via `YTerm` if available.
+- [ ] `FollowPatch` opens GitHub PR patch URL.
+
+---
+
+## 6. Tag Management
+
+Covered modules:
+
+- `lua/notmuch/tag.lua`
+- `ftplugin/notmuch-threads.lua`
+- `ftplugin/mail.lua`
+
+### Message tags
+
+- [ ] `msg_add_tag()` adds one tag.
+- [ ] Adds multiple tags from space-separated input.
+- [ ] `msg_rm_tag()` removes one tag.
+- [ ] Removes multiple tags.
+- [ ] `msg_toggle_tag()` adds missing tag.
+- [ ] `msg_toggle_tag()` removes existing tag.
+- [ ] Gracefully returns when no current message ID is found.
+- [ ] Database is opened in writable mode.
+- [ ] Database is closed after operation.
+
+### Thread tags
+
+- [ ] `thread_add_tag()` operates on current line by default.
+- [ ] `thread_add_tag()` operates on visual/range lines.
+- [ ] Adds multiple tags.
+- [ ] `thread_rm_tag()` removes multiple tags.
+- [ ] `thread_toggle_tag()` toggles tags based on current thread tags.
+- [ ] Handles malformed/non-thread lines safely.
+- [ ] Database is closed after operation.
+
+### Archive/read workflows
+
+- [ ] `a` toggles `inbox`.
+- [ ] `A` removes both `inbox` and `unread`.
+- [ ] `x` toggles `unread`.
+- [ ] `f` toggles `flagged`.
+
+---
+
+## 7. Delete and Purge Flow
+
+Covered modules:
+
+- `lua/notmuch/delete.lua`
+- `ftplugin/notmuch-threads.lua`
+
+### Soft delete
+
+- [ ] `DelThread` adds `del`.
+- [ ] `DelThread` removes `inbox`.
+- [ ] Deleted thread line is removed from current buffer.
+- [ ] Works for visual range.
+- [ ] Buffer modifiable state is restored.
+
+### Purge
+
+- [ ] `purge_del()` searches `tag:del and tag:/./`.
+- [ ] Sets temporary `DD` keymap.
+- [ ] Confirm “No” does not run shell command.
+- [ ] Confirm “Yes” runs delete pipeline.
+- [ ] Runs `notmuch new` after purge.
+- [ ] Refreshes search buffer.
+- [ ] Removes/overrides temporary keymap safely.
+
+---
+
+## 8. Attachments: Viewing, Saving, Opening
+
+Covered modules:
+
+- `lua/notmuch/attach.lua`
+- `lua/notmuch/handlers.lua`
+- `ftplugin/notmuch-attach.lua`
+
+### Attachment list buffer
+
+- [ ] `get_attachments_from_cursor_msg()` gets current message ID.
+- [ ] Returns safely if no message ID.
+- [ ] Does not open duplicate attachment buffer for same message.
+- [ ] Creates split buffer named `id:<message-id>`.
+- [ ] Sets `buftype=nofile`.
+- [ ] Calls `notmuch show --exclude=false --part=0 --format=json`.
+- [ ] Recursively parses MIME tree.
+- [ ] Skips multipart containers.
+- [ ] Includes text/plain and text/html leaf parts.
+- [ ] Treats inline non-text as attachment.
+- [ ] Stores `mime_parts_list` buffer variable.
+- [ ] Formats part table with aligned columns.
+- [ ] Sets filetype to `notmuch-attach`.
+- [ ] Buffer is non-modifiable.
+
+### Attachment buffer navigation/actions
+
+- [ ] Header lines do not map to a MIME part.
+- [ ] Cursor on part line resolves correct part.
+- [ ] Out-of-range cursor returns nil.
+- [ ] `q` closes attachment buffer.
+- [ ] `s` prompts and saves part.
+- [ ] `o` saves to `/tmp` and invokes configured open handler.
+- [ ] `v` saves to `/tmp`, invokes configured view handler, and opens floating window.
+
+### Saving attachments
+
+- [ ] Uses original filename when available.
+- [ ] Sanitizes slashes in filenames.
+- [ ] Generates filename from content type when missing.
+- [ ] `text/plain` becomes `.txt`.
+- [ ] Directory-only input appends filename.
+- [ ] Empty prompt cancels.
+- [ ] Nonexistent directory errors.
+- [ ] Non-writable directory errors.
+- [ ] Existing file prompts overwrite confirmation.
+- [ ] Declining overwrite cancels.
+- [ ] Successful save returns filepath.
+- [ ] Failed `notmuch show --part` returns nil.
+
+### Default open handler
+
+- [x] Uses `open` on macOS.
+- [x] Uses `xdg-open` on Linux.
+- [x] Uses `start` on Windows.
+- [x] Falls back to `xdg-open` on unknown OS.
+- [x] Runs detached.
+
+### Default view handler
+
+- [ ] HTML uses `w3m`, then `lynx`, then `elinks`.
+- [ ] PDF uses `pdftotext`, then `mutool`.
+- [ ] Images use `chafa`, `catimg`, `viu`, `exiftool`, `identify`.
+- [ ] Office docs use `pandoc`, then `docx2txt`.
+- [ ] Markdown uses `pandoc`, then `mdcat`, then `cat`.
+- [ ] Zip files use `unzip -l`.
+- [ ] Tar files use `tar -tvf`.
+- [x] Text files use `cat`.
+- [ ] Binary fallback uses `strings`.
+- [ ] If no viewer works, returns helpful fallback message.
+
+---
+
+## 9. URL and GitHub Patch Features
+
+Covered modules:
+
+- `lua/notmuch/attach.lua`
+- `ftplugin/mail.lua`
+
+### URL extraction
+
+- [ ] If `:YTerm` is unavailable, prints helpful message.
+- [ ] If no current message ID, returns safely.
+- [ ] Runs `YTerm "notmuch show id:<id> | urlextract"` when available.
+
+### GitHub patch following
+
+- [ ] Detects GitHub PR patch URLs.
+- [ ] Ignores non-patch URLs.
+- [ ] Opens new buffer named after patch URL.
+- [ ] Reuses existing patch buffer.
+- [ ] Runs curl to populate patch.
+- [ ] Sets filetype to `gitsendemail`.
+- [x] Sets buffer non-modifiable.
+
+---
+
+## 10. Compose and Reply
+
+Covered modules:
+
+- `lua/notmuch/send.lua`
+- `lua/notmuch/attach_cmd.lua`
+- `lua/notmuch/mime.lua`
+
+### Compose
+
+- [ ] `compose()` creates temp `*-compose.eml` file.
+- [ ] Inserts `From`, `To`, `Cc`, `Subject`, blank line, body hint.
+- [ ] Optional recipient argument populates `To`.
+- [ ] Uses configured sender from `config.options.from`.
+- [ ] Creates attachment buffer.
+- [ ] Attachment-window keymap opens split.
+- [ ] Send keymap prompts confirmation.
+- [ ] Confirm “No” does not send.
+- [ ] Confirm “Yes” with no attachments builds plain message.
+- [ ] Confirm “Yes” with attachments builds MIME message.
+- [ ] Calls `sendmail()` after building message.
+
+### Reply
+
+- [ ] Gets current message ID.
+- [ ] Returns safely if no message ID.
+- [ ] Creates `/tmp/reply-<id>.eml`.
+- [ ] Sanitizes `/` in message ID.
+- [ ] If draft does not exist, reads `notmuch reply id:<id>`.
+- [ ] If draft exists, does not duplicate reply content.
+- [ ] Sets `bufhidden=wipe`.
+- [ ] Initializes `b:notmuch_attachments`.
+- [ ] Creates buffer-local `:Attach`, `:AttachRemove`, `:AttachList`.
+- [ ] Send keymap builds plain or MIME depending on attachments.
+- [ ] Calls `sendmail()` after confirmation.
+
+### Sendmail
+
+- [ ] Returns false if file does not exist.
+- [ ] Builds `msmtp -t --read-envelope-from < file` command.
+- [ ] Adds `--logfile` when configured.
+- [ ] Opens terminal split.
+- [ ] Sends command to terminal job.
+- [ ] Starts insert mode.
+- [ ] Success exit notifies user.
+- [ ] Failure exit notifies user with code.
+- [ ] Handles interactive terminal use case.
+
+---
+
+## 11. Attachment Commands for Compose/Reply
+
+Covered modules:
+
+- `lua/notmuch/attach_cmd.lua`
+- `lua/notmuch/util.lua`
+
+### `:Attach`
+
+- [x] Expands relative paths.
+- [x] Converts to absolute path.
+- [x] Rejects nonexistent file.
+- [ ] Rejects unreadable file.
+- [x] Rejects directories.
+- [x] Rejects duplicate attachment.
+- [x] Adds valid attachment to `b:notmuch_attachments`.
+- [x] Notifies success with count.
+
+### `:AttachRemove`
+
+- [x] Removes existing attachment.
+- [x] Notifies remaining count.
+- [x] Errors when path is not attached.
+- [x] Handles expanded path consistency.
+
+### `:AttachList`
+
+- [x] Prints “No attachments” when empty.
+- [x] Lists all attachments with index and size.
+- [x] Handles missing stat gracefully.
+
+### Completion
+
+- [x] `AttachRemove` completion returns current attachments.
+
+---
+
+## 12. MIME Generation
+
+Covered modules:
+
+- `lua/notmuch/mime.lua`
+- `lua/notmuch/base64.lua`
+- `lua/notmuch/util.lua`
+
+### Header/body parsing
+
+- [x] Parses simple `Key: Value` headers.
+- [x] Stops headers at first blank line.
+- [x] Preserves body lines after blank separator.
+- [x] Supports folded RFC 5322 continuation lines.
+- [x] Treats first non-header line as body.
+- [x] Handles empty input.
+- [x] Handles headers with empty values.
+
+### Attachment validation
+
+- [x] Valid files become MIME attachment tables.
+- [x] Empty path entries are ignored.
+- [x] Invalid files are collected and reported together.
+- [x] Error message includes each bad path and reason.
+- [x] MIME type is detected with `file --mime-type`.
+
+### MIME message building
+
+- [x] Single inline part renders expected headers.
+- [x] Attachment part includes `Content-Disposition: attachment`.
+- [x] Inline part includes `Content-Disposition: inline`.
+- [x] Base64 attachment content is encoded.
+- [x] Base64 lines are wrapped at 76 characters.
+- [x] Multipart message includes boundary.
+- [ ] Nested multipart messages render correctly.
+- [x] Final boundary ends with `--`.
+- [x] Missing file after validation raises internal error.
+- [x] Random boundary length is correct.
+
+### Base64
+
+- [x] Encodes empty string.
+- [x] Encodes known strings: `f`, `fo`, `foo`, `foobar`.
+- [x] Decodes known strings.
+- [x] Round-trips binary-like input.
+- [x] Handles padding correctly.
+
+---
+
+## 13. Sync
+
+Covered modules:
+
+- `lua/notmuch/sync.lua`
+
+### Job helpers
+
+- [x] `create_job()` forwards callbacks/options.
+- [x] `stop_job()` stops valid job.
+- [x] `stop_job(nil)` returns false.
+- [x] `is_job_running()` returns correct status.
+- [x] Current sync job getter/setter works.
+
+### Buffer mode
+
+- [x] Default mode is buffer.
+- [x] Opens/reuses `notmuch-sync` buffer.
+- [x] Sets buffer options: `nofile`, `wipe`, no swapfile.
+- [x] Inserts initial status text.
+- [x] Runs `<maildir_sync_cmd> ; notmuch new`.
+- [x] Appends stdout incrementally.
+- [x] Appends stderr incrementally.
+- [x] Removes trailing empty stdout chunk.
+- [x] On success, appends success message and notifies.
+- [ ] On failure, appends failure message and notifies.
+- [x] Buffer is non-modifiable after writes.
+- [ ] `<C-c>` cancels running job.
+- [ ] `<C-c>` after job exit warns.
+
+### Background mode
+
+- [x] Runs job without creating buffer.
+- [x] Notifies start.
+- [x] Clears current job on exit.
+- [x] Success notifies.
+- [ ] Failure notifies.
+
+### Terminal mode
+
+- [ ] Opens terminal split.
+- [ ] Stores terminal job as current sync job.
+- [ ] Sends sync command plus `exit`.
+- [ ] Starts insert mode.
+- [ ] Clears current job on `TermClose`.
+- [ ] Success notifies after defer.
+- [ ] Failure notifies with exit code.
+
+### Concurrency
+
+- [x] Starting sync while one is running does not start another.
+- [ ] If sync buffer exists, switches to it.
+- [x] If no sync buffer exists, warns only.
+
+---
+
+## 14. Completion
+
+Covered modules:
+
+- `lua/notmuch/completion.lua`
+
+### Search term completion
+
+- [x] Default candidates include `tag:`, `from:`, `to:`, `date:`, boolean
+  operators, etc.
+- [x] Filters by prefix.
+- [x] `tag:` completes known tags.
+- [x] `is:` completes known tags.
+- [x] `from:` completes notmuch addresses.
+- [x] `to:` completes notmuch addresses.
+- [x] `mimetype:` completes top-level MIME types.
+- [x] `folder:` completes maildir folders.
+- [x] `path:` completes maildir paths.
+- [x] Folder/path values with spaces are quoted.
+- [x] Folder/path values with brackets are quoted.
+- [x] Duplicate folders are removed.
+- [x] Results are sorted.
+- [x] Failure to get `database.mail_root` returns empty list and notifies.
+
+### Tag/address completion
+
+- [x] `comp_tags()` filters notmuch tags.
+- [x] `comp_address()` filters notmuch addresses.
+- [x] Handles empty prefix.
+- [x] Handles no results.
+
+---
+
+## 15. Refresh
+
+Covered modules:
+
+- `lua/notmuch/refresh.lua`
+
+### Search refresh
+
+- [ ] Gets thread ID from current line.
+- [ ] Gets search query from buffer name.
+- [ ] Wipes current buffer.
+- [ ] Re-runs search.
+- [ ] Jumps back to previously selected thread.
+
+### Thread refresh
+
+- [ ] Extracts `thread:<id>` from buffer name.
+- [ ] Wipes current buffer.
+- [ ] Reopens same thread.
+
+### Hello refresh
+
+- [ ] Wipes current buffer.
+- [ ] Reopens tag list.
+
+---
+
+## 16. Utility Functions
+
+Covered modules:
+
+- `lua/notmuch/util.lua`
+
+### General utilities
+
+- [x] `empty_attachment_window()` returns true for empty buffer.
+- [x] Returns true for whitespace-only buffer.
+- [x] Returns false when any non-whitespace text exists.
+- [x] `format_size(nil)` returns `—`.
+- [x] `format_size(0)` returns `—`.
+- [x] Bytes format as `B`.
+- [x] Kilobytes format as `K`.
+- [x] Megabytes format as `M`.
+- [x] Gigabytes format as `G`.
+- [x] `file_exists()` true for existing file.
+- [x] `file_exists()` false for missing file.
+- [x] `validate_attachment_file()` accepts regular readable file.
+- [x] Rejects missing file.
+- [x] Rejects directory.
+- [ ] Rejects unreadable/special file.
+- [x] `split()` works with `%S+`.
+- [x] `split_length()` wraps strings correctly.
+- [x] `find_cursor_msg_id()` finds nearest previous `id:<id> {{{`.
+- [x] `find_cursor_msg_id()` returns nil and prints message if none found.
+
+---
+
+## 17. Filetype Plugins and Mappings
+
+Covered files:
+
+- `ftplugin/notmuch-hello.lua`
+- `ftplugin/notmuch-threads.lua`
+- `ftplugin/notmuch-attach.lua`
+- `ftplugin/mail.lua`
+
+### General mapping tests
+
+- [x] Each filetype plugin only creates buffer-local mappings.
+- [x] Mappings do not leak globally.
+- [x] Commands are buffer-local where expected.
+- [x] Commands have expected nargs/range/completion.
+- [x] `mail.lua` only configures thread buffers whose basename starts with `thread:`.
+- [x] Thread buffers use `foldmethod=marker`.
+- [x] Thread buffers start with `foldlevel=0`.
+- [x] Search buffers set `wrap=false`.
+
+---
+
+## 18. Integration / End-to-End Scenarios
+
+These can use a small disposable notmuch database fixture.
+
+### Basic read workflow
+
+- [x] Setup plugin against fixture database.
+- [x] Run `:Notmuch`.
+- [ ] Select `inbox`.
+- [ ] Search buffer appears.
+- [x] Open first thread.
+- [x] Thread renders expected subject/body.
+- [ ] Cursor status variables update.
+
+### Search workflow
+
+- [x] Run `:NmSearch tag:inbox`.
+- [x] Results stream in.
+- [ ] Refresh preserves current thread.
+- [ ] Reverse sorting works.
+- [x] Opening a specific `thread:<id>` directly works.
+
+### Tag workflow
+
+- [x] Add tag to thread.
+- [x] Remove tag from thread.
+- [ ] Toggle tag from thread.
+- [ ] Open thread.
+- [ ] Add/remove/toggle tag on message.
+- [ ] Refresh reflects changed tags.
+
+### Attachment workflow
+
+- [ ] Open message with attachment.
+- [ ] Open attachment list.
+- [ ] Save attachment to temp dir.
+- [ ] View attachment with stub handler.
+- [ ] Open attachment with stub handler.
+
+### Compose workflow
+
+- [ ] Compose new message.
+- [ ] Add attachment.
+- [ ] Remove attachment.
+- [ ] Build MIME message.
+- [ ] Stub `msmtp` and verify send command.
+
+### Reply workflow
+
+- [ ] Open thread.
+- [ ] Reply to message.
+- [ ] Draft generated from `notmuch reply`.
+- [ ] Attach file.
+- [ ] Send with stub `msmtp`.
+
+### Sync workflow
+
+- [ ] Buffer sync with fake sync command succeeds.
+- [ ] Buffer sync failure reports error.
+- [ ] Background sync succeeds.
+- [ ] Terminal sync sends command.
+- [ ] Concurrent sync is blocked.
+
+---
+
+## 19. Suggested Test Priority
+
+### Phase 1: Pure/unit tests
+
+Start with modules that do not need real Neovim UI or notmuch DB:
+
+- [x] `util.lua`
+- [x] `mime.lua`
+- [x] `base64.lua`
+- [x] `completion.lua` with mocked system calls
+- [x] `handlers.lua` with mocked `vim.system`
+- [x] `attach_cmd.lua`
+
+### Phase 2: Buffer/UI tests
+
+Use headless Neovim:
+
+- `init.lua`
+- `refresh.lua`
+- `sync.lua`
+- ftplugins
+- thread/search buffer creation
+- keymaps and user commands
+
+### Phase 3: Mocked notmuch tests
+
+Mock:
+
+- `notmuch.cnotmuch`
+- `vim.fn.system`
+- `vim.fn.systemlist`
+- `vim.system`
+- `vim.loop.spawn`
+
+Cover:
+
+- search
+- tags
+- threads
+- attachments
+- completion
+
+### Phase 4: Real integration tests
+
+Use a temporary Maildir and notmuch database fixture.
+
+Cover:
+
+- real indexing
+- real search
+- real `notmuch show --format=json`
+- real tag mutation
+- real attachment extraction
+
+---
+
+## 20. Highest-Value Coverage Targets
+
+If you want the most confidence quickly, prioritize:
+
+1. MIME generation and attachment validation.
+2. Thread JSON rendering.
+3. Search buffer behavior.
+4. Tag add/remove/toggle.
+5. Compose/reply send preparation.
+6. Attachment save/view/open workflow.
+7. Sync concurrency and modes.
+8. Completion behavior.
+9. Refresh behavior.
+10. End-to-end fixture database tests.

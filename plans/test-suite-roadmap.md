@@ -122,21 +122,21 @@ Covered modules:
 
 ### Search buffer keymaps/commands
 
-- [ ] `<CR>` opens selected thread.
-- [ ] `r` refreshes search buffer.
-- [ ] `o` reverses sort.
-- [ ] `%` starts sync.
-- [ ] `q` closes buffer.
-- [ ] `C` opens compose.
-- [ ] `+`, `-`, `=` operate on current thread.
-- [ ] Visual `+`, `-`, `=` operate on range.
+- [x] `<CR>` opens selected thread.
+- [x] `r` refreshes search buffer.
+- [x] `o` reverses sort.
+- [x] `%` starts sync.
+- [x] `q` closes buffer.
+- [x] `C` opens compose.
+- [x] `+`, `-`, `=` operate on current thread.
+- [x] Visual `+`, `-`, `=` operate on range.
 - [x] `a` toggles `inbox`.
-- [ ] `A` removes `inbox unread`.
+- [x] `A` removes `inbox unread`.
 - [x] `x` toggles `unread`.
 - [x] `f` toggles `flagged`.
-- [ ] `dd` marks thread deleted and removes it from buffer.
-- [ ] Visual `d` deletes selected range.
-- [ ] `D` opens deleted-thread purge flow.
+- [x] `dd` marks thread deleted and removes it from buffer.
+- [x] Visual `d` deletes selected range.
+- [x] `D` opens deleted-thread purge flow.
 
 ---
 

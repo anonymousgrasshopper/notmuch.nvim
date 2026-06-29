@@ -226,6 +226,37 @@ return {
     end,
   },
   {
+    name = "attach.save_attachment_part reports non-writable prompt directories",
+    run = function()
+      local attach = require("notmuch.attach")
+      local dir = H.tmpdir()
+      local part = { id = 8, content_type = "text/plain", filename = "blocked.txt", disposition = "attachment", size = 1 }
+      local buf = attachment_buf({ part }, "id:blocked-msg")
+      vim.api.nvim_win_set_cursor(0, { 4, 0 })
+
+      local old_input, old_notify, old_filewritable, old_system = vim.fn.input, vim.notify, vim.fn.filewritable, vim.fn.system
+      local note, ran_system
+      vim.fn.input = function() return dir .. "/blocked.txt" end
+      vim.fn.filewritable = function(path)
+        if path == dir then return 0 end
+        return old_filewritable(path)
+      end
+      vim.fn.system = function(cmd)
+        ran_system = cmd
+        return old_system(cmd)
+      end
+      vim.notify = function(msg, level) note = { msg = msg, level = level } end
+
+      H.eq(nil, attach.save_attachment_part(nil, true))
+      H.contains(note.msg, "Directory is not writable")
+      H.eq(vim.log.levels.ERROR, note.level)
+      H.eq(nil, ran_system)
+
+      vim.fn.input, vim.notify, vim.fn.filewritable, vim.fn.system = old_input, old_notify, old_filewritable, old_system
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end,
+  },
+  {
     name = "attach.save/open/view handlers handle failed saves and configured callbacks",
     run = function()
       local attach = require("notmuch.attach")

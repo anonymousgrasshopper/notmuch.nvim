@@ -321,8 +321,8 @@ Covered modules:
 - [x] Header lines do not map to a MIME part.
 - [x] Cursor on part line resolves correct part.
 - [x] Out-of-range cursor returns nil.
-- [ ] `q` closes attachment buffer.
-- [ ] `s` prompts and saves part.
+- [x] `q` closes attachment buffer.
+- [x] `s` prompts and saves part.
 - [x] `o` saves to `/tmp` and invokes configured open handler.
 - [x] `v` saves to `/tmp`, invokes configured view handler, and opens floating window.
 
@@ -335,7 +335,7 @@ Covered modules:
 - [x] Directory-only input appends filename.
 - [x] Empty prompt cancels.
 - [x] Nonexistent directory errors.
-- [ ] Non-writable directory errors.
+- [x] Non-writable directory errors.
 - [x] Existing file prompts overwrite confirmation.
 - [x] Declining overwrite cancels.
 - [x] Successful save returns filepath.
@@ -351,16 +351,16 @@ Covered modules:
 
 ### Default view handler
 
-- [ ] HTML uses `w3m`, then `lynx`, then `elinks`.
-- [ ] PDF uses `pdftotext`, then `mutool`.
-- [ ] Images use `chafa`, `catimg`, `viu`, `exiftool`, `identify`.
-- [ ] Office docs use `pandoc`, then `docx2txt`.
-- [ ] Markdown uses `pandoc`, then `mdcat`, then `cat`.
-- [ ] Zip files use `unzip -l`.
-- [ ] Tar files use `tar -tvf`.
+- [x] HTML uses `w3m`, then `lynx`, then `elinks`.
+- [x] PDF uses `pdftotext`, then `mutool`.
+- [x] Images use `chafa`, `catimg`, `viu`, `exiftool`, `identify`.
+- [x] Office docs use `pandoc`, then `docx2txt`.
+- [x] Markdown uses `pandoc`, then `mdcat`, then `cat`.
+- [x] Zip files use `unzip -l`.
+- [x] Tar files use `tar -tvf`.
 - [x] Text files use `cat`.
-- [ ] Binary fallback uses `strings`.
-- [ ] If no viewer works, returns helpful fallback message.
+- [x] Binary fallback uses `strings`.
+- [x] If no viewer works, returns helpful fallback message.
 
 ---
 

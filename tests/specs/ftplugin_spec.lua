@@ -361,4 +361,33 @@ return {
       H.ok(map_rhs("n", "v", buf), "missing v")
     end,
   },
+  {
+    name = "notmuch-attach ftplugin save mapping prompts and q closes buffer",
+    run = function()
+      local attach = require("notmuch.attach")
+      local old_save = attach.save_attachment_part
+      local called
+      local ok, err = pcall(function()
+        attach.save_attachment_part = function(savedir, prompt_user)
+          called = { savedir = savedir, prompt_user = prompt_user }
+          return "/tmp/saved"
+        end
+
+        local buf = vim.api.nvim_create_buf(true, true)
+        vim.api.nvim_win_set_buf(0, buf)
+        vim.bo.filetype = "notmuch-attach"
+        vim.cmd("runtime ftplugin/notmuch-attach.lua")
+
+        map_rhs("n", "s", buf)()
+        H.same({ savedir = nil, prompt_user = true }, called)
+
+        vim.api.nvim_feedkeys("q", "xt", false)
+        H.wait_until(function()
+          return not vim.api.nvim_buf_is_valid(buf)
+        end, 1000)
+      end)
+      attach.save_attachment_part = old_save
+      if not ok then error(err, 0) end
+    end,
+  },
 }

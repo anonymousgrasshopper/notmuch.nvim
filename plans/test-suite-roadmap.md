@@ -274,21 +274,21 @@ Covered modules:
 
 ### Soft delete
 
-- [ ] `DelThread` adds `del`.
-- [ ] `DelThread` removes `inbox`.
-- [ ] Deleted thread line is removed from current buffer.
-- [ ] Works for visual range.
-- [ ] Buffer modifiable state is restored.
+- [x] `DelThread` adds `del`.
+- [x] `DelThread` removes `inbox`.
+- [x] Deleted thread line is removed from current buffer.
+- [x] Works for visual range.
+- [x] Buffer modifiable state is restored.
 
 ### Purge
 
-- [ ] `purge_del()` searches `tag:del and tag:/./`.
-- [ ] Sets temporary `DD` keymap.
-- [ ] Confirm “No” does not run shell command.
-- [ ] Confirm “Yes” runs delete pipeline.
-- [ ] Runs `notmuch new` after purge.
-- [ ] Refreshes search buffer.
-- [ ] Removes/overrides temporary keymap safely.
+- [x] `purge_del()` searches `tag:del and tag:/./`.
+- [x] Sets temporary `DD` keymap.
+- [x] Confirm “No” does not run shell command.
+- [x] Confirm “Yes” runs delete pipeline.
+- [x] Runs `notmuch new` after purge.
+- [x] Refreshes search buffer.
+- [x] Removes/overrides temporary keymap safely.
 
 ---
 

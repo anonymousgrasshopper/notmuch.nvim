@@ -15,6 +15,7 @@ local spec_files = {
   "tests/specs/sync_spec.lua",
   "tests/specs/thread_spec.lua",
   "tests/specs/tag_spec.lua",
+  "tests/specs/refresh_spec.lua",
 
   -- Buffer/UI and integration coverage.
   "tests/specs/init_spec.lua",

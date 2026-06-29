@@ -623,22 +623,22 @@ Covered modules:
 
 ### Search refresh
 
-- [ ] Gets thread ID from current line.
-- [ ] Gets search query from buffer name.
-- [ ] Wipes current buffer.
-- [ ] Re-runs search.
-- [ ] Jumps back to previously selected thread.
+- [x] Gets thread ID from current line.
+- [x] Gets search query from buffer name.
+- [x] Wipes current buffer.
+- [x] Re-runs search.
+- [x] Jumps back to previously selected thread.
 
 ### Thread refresh
 
-- [ ] Extracts `thread:<id>` from buffer name.
-- [ ] Wipes current buffer.
-- [ ] Reopens same thread.
+- [x] Extracts `thread:<id>` from buffer name.
+- [x] Wipes current buffer.
+- [x] Reopens same thread.
 
 ### Hello refresh
 
-- [ ] Wipes current buffer.
-- [ ] Reopens tag list.
+- [x] Wipes current buffer.
+- [x] Reopens tag list.
 
 ---
 

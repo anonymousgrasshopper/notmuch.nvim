@@ -149,10 +149,10 @@ Covered modules:
 
 ### `:Inbox`
 
-- [ ] `:Inbox` searches `tag:inbox`.
-- [ ] `:Inbox user@example.com` searches `tag:inbox to:user@example.com`.
-- [ ] Completion uses notmuch addresses.
-- [ ] Handles email addresses with special characters.
+- [x] `:Inbox` searches `tag:inbox`.
+- [x] `:Inbox user@example.com` searches `tag:inbox to:user@example.com`.
+- [x] Completion uses notmuch addresses.
+- [x] Handles email addresses with special characters.
 
 ---
 

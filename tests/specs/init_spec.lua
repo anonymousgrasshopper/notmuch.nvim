@@ -20,6 +20,29 @@ return {
     end,
   },
   {
+    name = "Inbox command searches inbox with optional recipient and address completion",
+    run = function()
+      local nm = require("notmuch")
+      local old_search_terms = nm.search_terms
+      local calls = {}
+      local ok, err = pcall(function()
+        nm.search_terms = function(query) table.insert(calls, query) end
+
+        vim.cmd("Inbox")
+        H.eq("tag:inbox", calls[#calls])
+
+        vim.cmd("Inbox user+tag@example.co.uk")
+        H.eq("tag:inbox to:user+tag@example.co.uk", calls[#calls])
+
+        local completions = vim.fn.getcompletion("Inbox ", "cmdline")
+        H.ok(#completions > 0, "expected Inbox command address completions")
+        H.ok(vim.tbl_contains(completions, "Keith Packard <keithp@keithp.com>"), "expected notmuch address completion")
+      end)
+      nm.search_terms = old_search_terms
+      if not ok then error(err, 0) end
+    end,
+  },
+  {
     name = "search_terms returns on empty query without creating a search buffer",
     run = function()
       vim.cmd("enew")

@@ -18,6 +18,7 @@ local function with_send_env(fn)
   local old_sendmail = send.sendmail
   local old_path = vim.env.PATH
   local old_get_current_message_id = thread.get_current_message_id
+  local old_logfile = config.options.logfile
   local dir = H.tmpdir()
   local state = { dir = dir, sent = {} }
 
@@ -37,6 +38,7 @@ local function with_send_env(fn)
   send.sendmail = old_sendmail
   vim.env.PATH = old_path
   thread.get_current_message_id = old_get_current_message_id
+  config.options.logfile = old_logfile
   pcall(vim.cmd, "silent! %bwipeout!")
 
   if not ok then error(err, 0) end
@@ -257,6 +259,100 @@ return {
         local text = table.concat(vim.api.nvim_buf_get_lines(mime_buf, 0, -1, false), "\n")
         H.contains(text, "Content-Type: multipart/mixed")
         H.contains(text, "Content-Disposition: attachment; filename=\"reply-attachment.txt\"")
+      end)
+    end,
+  },
+  {
+    name = "send.sendmail returns false for missing files",
+    run = function()
+      with_send_env(function(_, send)
+        local old_notify = vim.notify
+        local note
+        vim.notify = function(msg, level) note = { msg = msg, level = level } end
+        local ok, err = pcall(function()
+          H.eq(false, send.sendmail("/tmp/notmuch-nvim-missing-message.eml"))
+          H.contains(note.msg, "Email file not found")
+          H.eq(vim.log.levels.ERROR, note.level)
+        end)
+        vim.notify = old_notify
+        if not ok then error(err, 0) end
+      end)
+    end,
+  },
+  {
+    name = "send.sendmail opens terminal, sends msmtp command with logfile, starts insert, and reports success",
+    run = function()
+      with_send_env(function(state, send, config)
+        local file = H.write_file(state.dir .. "/message.eml", "From: a@example.com\n\nbody\n")
+        config.options.logfile = state.dir .. "/msmtp.log"
+
+        local old_chansend = vim.fn.chansend
+        local old_cmd = vim.cmd
+        local old_notify = vim.notify
+        local sent_cmd, term_job
+        local cmds, notes = {}, {}
+        vim.cmd = function(cmd)
+          table.insert(cmds, cmd)
+          return old_cmd(cmd)
+        end
+        vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
+        vim.fn.chansend = function(job, data)
+          term_job = job
+          sent_cmd = data
+          return old_chansend(job, "exit 0\n")
+        end
+
+        local ok, err = pcall(function()
+          H.eq(true, send.sendmail(file))
+          H.ok(term_job, "expected terminal job id")
+          H.contains(sent_cmd, "msmtp -t --read-envelope-from")
+          H.contains(sent_cmd, "--logfile=" .. vim.fn.shellescape(config.options.logfile))
+          H.contains(sent_cmd, "<" .. vim.fn.shellescape(file))
+          H.contains(sent_cmd, " ; exit")
+          H.list_contains(cmds, "botright 15split | terminal")
+          H.list_contains(cmds, "startinsert")
+          H.wait_until(function()
+            return notes[#notes] and notes[#notes].msg:find("Email sent successfully", 1, true)
+          end, 1500)
+        end)
+
+        vim.fn.chansend = old_chansend
+        vim.cmd = old_cmd
+        vim.notify = old_notify
+        if not ok then error(err, 0) end
+      end)
+    end,
+  },
+  {
+    name = "send.sendmail reports terminal failure exit codes",
+    run = function()
+      with_send_env(function(state, send, config)
+        local file = H.write_file(state.dir .. "/message.eml", "From: a@example.com\n\nbody\n")
+        config.options.logfile = nil
+
+        local old_chansend = vim.fn.chansend
+        local old_notify = vim.notify
+        local sent_cmd
+        local notes = {}
+        vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
+        vim.fn.chansend = function(job, data)
+          sent_cmd = data
+          return old_chansend(job, "exit 7\n")
+        end
+
+        local ok, err = pcall(function()
+          H.eq(true, send.sendmail(file))
+          H.contains(sent_cmd, "msmtp -t --read-envelope-from")
+          H.ok(not sent_cmd:find("--logfile", 1, true), "unexpected logfile option")
+          H.wait_until(function()
+            return notes[#notes] and notes[#notes].msg:find("exit code: 7", 1, true)
+          end, 1500)
+          H.eq(vim.log.levels.ERROR, notes[#notes].level)
+        end)
+
+        vim.fn.chansend = old_chansend
+        vim.notify = old_notify
+        if not ok then error(err, 0) end
       end)
     end,
   },

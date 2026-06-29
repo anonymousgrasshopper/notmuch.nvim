@@ -404,15 +404,15 @@ Covered modules:
 
 ### Sendmail
 
-- [ ] Returns false if file does not exist.
-- [ ] Builds `msmtp -t --read-envelope-from < file` command.
-- [ ] Adds `--logfile` when configured.
-- [ ] Opens terminal split.
-- [ ] Sends command to terminal job.
-- [ ] Starts insert mode.
-- [ ] Success exit notifies user.
-- [ ] Failure exit notifies user with code.
-- [ ] Handles interactive terminal use case.
+- [x] Returns false if file does not exist.
+- [x] Builds `msmtp -t --read-envelope-from < file` command.
+- [x] Adds `--logfile` when configured.
+- [x] Opens terminal split.
+- [x] Sends command to terminal job.
+- [x] Starts insert mode.
+- [x] Success exit notifies user.
+- [x] Failure exit notifies user with code.
+- [x] Handles interactive terminal use case.
 
 ---
 

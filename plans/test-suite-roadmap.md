@@ -181,34 +181,34 @@ Covered modules:
 
 Test with fixture JSON from `notmuch show --format=json`.
 
-- [ ] Single-message thread renders correctly.
-- [ ] Multi-message thread renders all messages.
-- [ ] Reply depth adds indentation markers.
-- [ ] Headers render `Subject`, `From`, `To`, `Cc`, `Date`.
-- [ ] Missing headers use fallbacks.
+- [x] Single-message thread renders correctly.
+- [x] Multi-message thread renders all messages.
+- [x] Reply depth adds indentation markers.
+- [x] Headers render `Subject`, `From`, `To`, `Cc`, `Date`.
+- [x] Missing headers use fallbacks.
 - [x] Fold markers are placed correctly.
-- [ ] Message body text/plain renders correctly.
-- [ ] Multipart messages recurse correctly.
-- [ ] Multipart alternative prefers plain text when `render_html_body = false`.
-- [ ] HTML body shows hidden/alternative marker when rendering disabled.
-- [ ] HTML body is rendered via `w3m` when `render_html_body = true`.
-- [ ] Missing `w3m` shows helpful placeholder.
-- [ ] Failed `w3m` render shows helpful placeholder.
-- [ ] Attachments are counted and displayed in headers.
-- [ ] Attachment body parts render placeholder lines.
-- [ ] Inline non-text parts render placeholder lines.
+- [x] Message body text/plain renders correctly.
+- [x] Multipart messages recurse correctly.
+- [x] Multipart alternative prefers plain text when `render_html_body = false`.
+- [x] HTML body shows hidden/alternative marker when rendering disabled.
+- [x] HTML body is rendered via `w3m` when `render_html_body = true`.
+- [x] Missing `w3m` shows helpful placeholder.
+- [x] Failed `w3m` render shows helpful placeholder.
+- [x] Attachments are counted and displayed in headers.
+- [x] Attachment body parts render placeholder lines.
+- [x] Inline non-text parts render placeholder lines.
 
 ### Buffer-local metadata
 
 - [x] `vim.b.notmuch_thread` is populated.
 - [x] `vim.b.notmuch_messages` is populated.
 - [x] Message count is correct.
-- [ ] Thread tags are collected correctly.
-- [ ] Authors are collected correctly.
-- [ ] Message line positions are correct.
-- [ ] Attachment counts are correct.
-- [ ] `vim.b.notmuch_current` updates when cursor moves.
-- [ ] `vim.b.notmuch_status` is formatted correctly.
+- [x] Thread tags are collected correctly.
+- [x] Authors are collected correctly.
+- [x] Message line positions are correct.
+- [x] Attachment counts are correct.
+- [x] `vim.b.notmuch_current` updates when cursor moves.
+- [x] `vim.b.notmuch_status` is formatted correctly.
 
 ### Thread keymaps/commands
 

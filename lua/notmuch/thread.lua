@@ -89,7 +89,10 @@ local function format_headers(msg, depth)
 
   -- Helper to remove folded lines (RFC 2822)
   local function unfold(s)
-    return s and s:gsub('\r?\n%S*', ' ') or ""
+    if not s or s == "" then
+      return nil
+    end
+    return s:gsub('\r?\n%S*', ' ')
   end
 
   -- Extract header values with fallbacks

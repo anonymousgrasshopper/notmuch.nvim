@@ -58,6 +58,18 @@ return {
     end,
   },
   {
+    name = "search_terms jumps to requested thread after async refresh completes",
+    run = function()
+      local query = "tag:inbox"
+      local target = H.first_thread_id(query)
+      require("notmuch").search_terms(query .. " and thread:" .. target, target)
+      H.wait_until(function()
+        return vim.api.nvim_get_current_line():find(target, 1, true)
+      end, 3000)
+      H.contains(vim.api.nvim_get_current_line(), target)
+    end,
+  },
+  {
     name = "reverse_sort_threads preserves hints and reverses result lines",
     run = function()
       local buf = vim.api.nvim_create_buf(true, true)
@@ -67,6 +79,27 @@ return {
       vim.bo.filetype = "notmuch-threads"
       require("notmuch").reverse_sort_threads()
       H.same({ "Hints: keep", "thread:3", "thread:2", "thread:1" }, H.current_lines())
+      H.eq(false, vim.bo.modifiable)
+    end,
+  },
+  {
+    name = "reverse_sort_threads handles empty and one-result buffers",
+    run = function()
+      local nm = require("notmuch")
+      local buf = vim.api.nvim_create_buf(true, true)
+      vim.api.nvim_win_set_buf(0, buf)
+      vim.bo.modifiable = true
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Hints: keep" })
+      vim.bo.filetype = "notmuch-threads"
+      nm.reverse_sort_threads()
+      H.same({ "Hints: keep" }, H.current_lines())
+      H.eq(false, vim.bo.modifiable)
+
+      vim.bo.modifiable = true
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Hints: keep", "thread:only" })
+      vim.bo.modifiable = false
+      nm.reverse_sort_threads()
+      H.same({ "Hints: keep", "thread:only" }, H.current_lines())
       H.eq(false, vim.bo.modifiable)
     end,
   },

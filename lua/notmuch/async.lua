@@ -62,9 +62,11 @@ a.run_notmuch_search = function(search, buf, on_complete)
   end))
 
   -- Log errors from stderr
-  vim.loop.read_start(stderr, vim.schedule_wrap(function(err, _)
+  vim.loop.read_start(stderr, vim.schedule_wrap(function(err, data)
     if err then
       vim.notify("ERROR: " .. err)
+    elseif data then
+      vim.notify("ERROR: " .. data)
     end
   end))
 end

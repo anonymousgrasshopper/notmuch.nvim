@@ -101,24 +101,24 @@ Covered modules:
 - [x] Buffer is non-modifiable after setup.
 - [x] Cursor starts at the top.
 - [x] Completion callback prints correct number of threads.
-- [ ] Optional `jumptothreadid` moves cursor to matching thread after refresh.
+- [x] Optional `jumptothreadid` moves cursor to matching thread after refresh.
 
 ### Async search
 
 - [x] `notmuch search <query>` is spawned.
-- [ ] Output chunks are appended incrementally.
-- [ ] Partial lines across chunks are handled correctly.
-- [ ] Buffer is temporarily made modifiable during writes.
-- [ ] If buffer is deleted during search, process is killed or exits safely.
-- [ ] Completion callback runs after process exits.
-- [ ] Stderr errors notify the user.
+- [x] Output chunks are appended incrementally.
+- [x] Partial lines across chunks are handled correctly.
+- [x] Buffer is temporarily made modifiable during writes.
+- [x] If buffer is deleted during search, process is killed or exits safely.
+- [x] Completion callback runs after process exits.
+- [x] Stderr errors notify the user.
 
 ### Sorting
 
 - [x] `reverse_sort_threads()` preserves hints line.
 - [x] Thread result lines are reversed.
-- [ ] Handles empty result buffer.
-- [ ] Handles one-result buffer.
+- [x] Handles empty result buffer.
+- [x] Handles one-result buffer.
 
 ### Search buffer keymaps/commands
 

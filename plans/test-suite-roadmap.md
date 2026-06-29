@@ -390,17 +390,17 @@ Covered modules:
 
 ### Reply
 
-- [ ] Gets current message ID.
+- [x] Gets current message ID.
 - [x] Returns safely if no message ID.
-- [ ] Creates `/tmp/reply-<id>.eml`.
-- [ ] Sanitizes `/` in message ID.
-- [ ] If draft does not exist, reads `notmuch reply id:<id>`.
-- [ ] If draft exists, does not duplicate reply content.
-- [ ] Sets `bufhidden=wipe`.
-- [ ] Initializes `b:notmuch_attachments`.
-- [ ] Creates buffer-local `:Attach`, `:AttachRemove`, `:AttachList`.
-- [ ] Send keymap builds plain or MIME depending on attachments.
-- [ ] Calls `sendmail()` after confirmation.
+- [x] Creates `/tmp/reply-<id>.eml`.
+- [x] Sanitizes `/` in message ID.
+- [x] If draft does not exist, reads `notmuch reply id:<id>`.
+- [x] If draft exists, does not duplicate reply content.
+- [x] Sets `bufhidden=wipe`.
+- [x] Initializes `b:notmuch_attachments`.
+- [x] Creates buffer-local `:Attach`, `:AttachRemove`, `:AttachList`.
+- [x] Send keymap builds plain or MIME depending on attachments.
+- [x] Calls `sendmail()` after confirmation.
 
 ### Sendmail
 

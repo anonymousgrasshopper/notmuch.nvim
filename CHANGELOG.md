@@ -7,14 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Full headless Neovim test suite covering core modules, ftplugins, UI flows, and end-to-end notmuch workflows
+- Disposable notmuch fixture database setup using bundled mail corpora under `tests/fixtures/corpora`
+- Dependency-free Lua test runner and shared test helpers under `tests/`
+- Test setup and cleanup scripts for generated notmuch state under `tests/tmp`
+- `Makefile` targets for dependency checks, test database setup, test execution, cleanup, and CI entrypoint (`make check`)
+- GitHub Actions workflow to run the test suite on pull requests, pushes to `main`/`master`, and manual dispatches
+
 ### Changed
 
 - Migrated ftplugin files from Vimscript to Lua (`mail`, `notmuch-attach`, `notmuch-hello`, and `notmuch-threads`)
 - Deleting threads from the thread list now removes them from the buffer immediately
+- Generated test state is now ignored by git
 
 ### Fixed
 
 - Attachment filenames with `/` characters are now sanitized to prevent directory path errors when saving
+- Async notmuch search now reports stderr output instead of silently ignoring it
+- Attachment part lookup now handles buffers without `mime_parts_list` gracefully
+- `:AttachRemove` now normalizes expanded paths before matching attachments
+- Failed maildir syncs now use error-level notifications
+- Message tag operations now return before opening a writable database when no current message is available
+- Thread tag operations now skip non-thread lines safely and parse thread IDs more robustly
+- Empty or missing message headers now use fallback header values instead of rendering blank values
 
 ## [0.3.0] - 2026-02-11
 

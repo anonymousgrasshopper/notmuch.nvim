@@ -678,28 +678,28 @@ These can use a small disposable notmuch database fixture.
 
 - [x] Setup plugin against fixture database.
 - [x] Run `:Notmuch`.
-- [ ] Select `inbox`.
-- [ ] Search buffer appears.
+- [x] Select `inbox`.
+- [x] Search buffer appears.
 - [x] Open first thread.
 - [x] Thread renders expected subject/body.
-- [ ] Cursor status variables update.
+- [x] Cursor status variables update.
 
 ### Search workflow
 
 - [x] Run `:NmSearch tag:inbox`.
 - [x] Results stream in.
-- [ ] Refresh preserves current thread.
-- [ ] Reverse sorting works.
+- [x] Refresh preserves current thread.
+- [x] Reverse sorting works.
 - [x] Opening a specific `thread:<id>` directly works.
 
 ### Tag workflow
 
 - [x] Add tag to thread.
 - [x] Remove tag from thread.
-- [ ] Toggle tag from thread.
-- [ ] Open thread.
-- [ ] Add/remove/toggle tag on message.
-- [ ] Refresh reflects changed tags.
+- [x] Toggle tag from thread.
+- [x] Open thread.
+- [x] Add/remove/toggle tag on message.
+- [x] Refresh reflects changed tags.
 
 ### Attachment workflow
 

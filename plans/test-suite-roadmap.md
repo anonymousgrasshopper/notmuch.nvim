@@ -527,10 +527,10 @@ Covered modules:
 - [x] Appends stderr incrementally.
 - [x] Removes trailing empty stdout chunk.
 - [x] On success, appends success message and notifies.
-- [ ] On failure, appends failure message and notifies.
+- [x] On failure, appends failure message and notifies.
 - [x] Buffer is non-modifiable after writes.
-- [ ] `<C-c>` cancels running job.
-- [ ] `<C-c>` after job exit warns.
+- [x] `<C-c>` cancels running job.
+- [x] `<C-c>` after job exit warns.
 
 ### Background mode
 
@@ -538,22 +538,22 @@ Covered modules:
 - [x] Notifies start.
 - [x] Clears current job on exit.
 - [x] Success notifies.
-- [ ] Failure notifies.
+- [x] Failure notifies.
 
 ### Terminal mode
 
-- [ ] Opens terminal split.
-- [ ] Stores terminal job as current sync job.
-- [ ] Sends sync command plus `exit`.
-- [ ] Starts insert mode.
-- [ ] Clears current job on `TermClose`.
-- [ ] Success notifies after defer.
-- [ ] Failure notifies with exit code.
+- [x] Opens terminal split.
+- [x] Stores terminal job as current sync job.
+- [x] Sends sync command plus `exit`.
+- [x] Starts insert mode.
+- [x] Clears current job on `TermClose`.
+- [x] Success notifies after defer.
+- [x] Failure notifies with exit code.
 
 ### Concurrency
 
 - [x] Starting sync while one is running does not start another.
-- [ ] If sync buffer exists, switches to it.
+- [x] If sync buffer exists, switches to it.
 - [x] If no sync buffer exists, warns only.
 
 ---

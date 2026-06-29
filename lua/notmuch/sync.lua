@@ -231,7 +231,7 @@ s.sync_maildir = function()
 				vim.notify("Maildir sync finished successfully!", vim.log.levels.INFO)
 			else
 				ui.safe_buf_set_lines(buf, -1, -1, false, { "", "Maildir sync failed!" })
-				vim.notify("Maildir sync failed!", vim.log.levels.INFO)
+				vim.notify("Maildir sync failed!", vim.log.levels.ERROR)
 			end
 			ui.safe_buf_set_option(buf, "modifiable", false)
 		end,

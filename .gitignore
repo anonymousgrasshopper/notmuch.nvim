@@ -1,1 +1,5 @@
 doc/tags
+
+# Generated test state
+tests/tmp/
+.test/

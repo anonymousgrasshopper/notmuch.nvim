@@ -38,6 +38,7 @@ a.remove_handler = function(buf)
   return function(opts)
     local attachments = v.nvim_buf_get_var(buf, 'notmuch_attachments')
     local filepath = vim.fn.expand(opts.args)
+    filepath = vim.fn.fnamemodify(filepath, ':p')
 
     -- Find and remove the file from attachments
     local found_index = nil

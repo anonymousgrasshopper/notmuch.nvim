@@ -127,6 +127,54 @@ return {
     end,
   },
   {
+    name = "show_thread extracts selected thread id, renders lines, hints, metadata, and tracking",
+    run = function()
+      local nm = require("notmuch")
+      local thread = require("notmuch.thread")
+      local old_show_thread = thread.show_thread
+      local old_setup_cursor_tracking = thread.setup_cursor_tracking
+      local called_id, tracked_buf
+
+      local ok, err = pcall(function()
+        thread.show_thread = function(threadid)
+          called_id = threadid
+          return { "Rendered header", "id:m1 {{{", "body", "}}}", "" }, {
+            thread = { id = threadid, subject = "Rendered subject" },
+            messages = { { id = "m1", start_line = 3, end_line = 6 } },
+          }
+        end
+        thread.setup_cursor_tracking = function(buf) tracked_buf = buf end
+
+        local search_buf = vim.api.nvim_create_buf(true, true)
+        vim.api.nvim_win_set_buf(0, search_buf)
+        vim.api.nvim_buf_set_lines(search_buf, 0, -1, false, { "Hints: test", "thread:abc123 rendered subject" })
+        vim.api.nvim_win_set_cursor(0, { 2, 0 })
+
+        H.eq(nil, nm.show_thread())
+        local thread_buf = vim.api.nvim_get_current_buf()
+        H.eq("abc123", called_id)
+        H.eq("thread:abc123", buffer_basename())
+        H.eq("mail", vim.bo.filetype)
+        H.eq(false, vim.bo.modifiable)
+        H.eq(thread_buf, tracked_buf)
+        H.same({
+          "Hints: <Enter>: Toggle fold message | <Tab>: Next message | <S-Tab>: Prev message | q: Close | a: See attachment parts",
+          "",
+          "Rendered header",
+          "id:m1 {{{",
+          "body",
+          "}}}",
+        }, H.current_lines())
+        H.eq("abc123", vim.b.notmuch_thread.id)
+        H.eq("m1", vim.b.notmuch_messages[1].id)
+      end)
+
+      thread.show_thread = old_show_thread
+      thread.setup_cursor_tracking = old_setup_cursor_tracking
+      if not ok then error(err, 0) end
+    end,
+  },
+  {
     name = "show_thread refuses the hints line and reuses existing thread buffer",
     run = function()
       local nm = require("notmuch")

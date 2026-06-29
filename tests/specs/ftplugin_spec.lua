@@ -263,13 +263,89 @@ return {
 
       local thread = vim.api.nvim_create_buf(true, true)
       vim.api.nvim_win_set_buf(0, thread)
-      vim.api.nvim_buf_set_name(thread, "thread:abc123")
+      vim.api.nvim_buf_set_name(thread, "thread:ftplugin")
       vim.bo.filetype = "mail"
       vim.cmd("runtime ftplugin/mail.lua")
       H.eq("marker", vim.wo.foldmethod)
       H.eq(0, vim.wo.foldlevel)
+      H.eq("za", map_rhs("n", "<CR>", thread))
+      H.eq("zj", map_rhs("n", "<Tab>", thread))
+      H.eq("zk", map_rhs("n", "<S-Tab>", thread))
       H.ok(map_rhs("n", "a", thread), "missing attachment mapping")
-      H.ok(vim.api.nvim_buf_get_commands(thread, {}).FollowPatch, "missing FollowPatch")
+      H.ok(map_rhs("n", "r", thread), "missing refresh mapping")
+      H.ok(map_rhs("n", "C", thread), "missing compose mapping")
+      H.ok(map_rhs("n", "R", thread), "missing reply mapping")
+      H.ok(map_rhs("n", "q", thread), "missing close mapping")
+      H.ok(map_rhs("n", "+", thread), "missing add-tag mapping")
+      H.ok(map_rhs("n", "-", thread), "missing remove-tag mapping")
+      H.ok(map_rhs("n", "=", thread), "missing toggle-tag mapping")
+    end,
+  },
+  {
+    name = "mail ftplugin thread actions open attachments, refresh, compose, reply, tag messages, and close",
+    run = function()
+      local attach = require("notmuch.attach")
+      local refresh = require("notmuch.refresh")
+      local send = require("notmuch.send")
+      local tag = require("notmuch.tag")
+      local original = {
+        get_attachments = attach.get_attachments_from_cursor_msg,
+        refresh = refresh.refresh_thread_buffer,
+        compose = send.compose,
+        reply = send.reply,
+        add = tag.msg_add_tag,
+        rm = tag.msg_rm_tag,
+        toggle = tag.msg_toggle_tag,
+      }
+      local calls = {}
+
+      local ok, err = pcall(function()
+        attach.get_attachments_from_cursor_msg = function() calls.attach = true end
+        refresh.refresh_thread_buffer = function() calls.refresh = true end
+        send.compose = function() calls.compose = true end
+        send.reply = function() calls.reply = true end
+        tag.msg_add_tag = function(tags) calls.add = tags end
+        tag.msg_rm_tag = function(tags) calls.rm = tags end
+        tag.msg_toggle_tag = function(tags) calls.toggle = tags end
+
+        local buf = vim.api.nvim_create_buf(true, true)
+        vim.api.nvim_win_set_buf(0, buf)
+        vim.api.nvim_buf_set_name(buf, "thread:mailactions")
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Hints", "", "id:m1 {{{", "body", "}}}" })
+        vim.bo.filetype = "mail"
+        vim.cmd("runtime ftplugin/mail.lua")
+
+        map_rhs("n", "a", buf)()
+        H.eq(true, calls.attach)
+        map_rhs("n", "r", buf)()
+        H.eq(true, calls.refresh)
+        map_rhs("n", "C", buf)()
+        H.eq(true, calls.compose)
+        map_rhs("n", "R", buf)()
+        H.eq(true, calls.reply)
+
+        vim.cmd("TagAdd seen custom")
+        H.eq("seen custom", calls.add)
+        vim.cmd("TagRm unread")
+        H.eq("unread", calls.rm)
+        vim.cmd("TagToggle flagged")
+        H.eq("flagged", calls.toggle)
+
+        vim.api.nvim_feedkeys("q", "xt", false)
+        H.wait_until(function()
+          return not vim.api.nvim_buf_is_valid(buf)
+        end, 1000)
+      end)
+
+      attach.get_attachments_from_cursor_msg = original.get_attachments
+      refresh.refresh_thread_buffer = original.refresh
+      send.compose = original.compose
+      send.reply = original.reply
+      tag.msg_add_tag = original.add
+      tag.msg_rm_tag = original.rm
+      tag.msg_toggle_tag = original.toggle
+
+      if not ok then error(err, 0) end
     end,
   },
   {

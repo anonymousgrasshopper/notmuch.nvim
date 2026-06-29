@@ -166,16 +166,16 @@ Covered modules:
 
 ### Opening threads
 
-- [ ] `show_thread()` extracts thread ID from selected search line.
+- [x] `show_thread()` extracts thread ID from selected search line.
 - [x] Hints line cannot be opened.
 - [x] Existing `thread:<id>` buffer is reused.
 - [x] New buffer is named `thread:<id>`.
-- [ ] Calls `notmuch.thread.show_thread(threadid)`.
-- [ ] Inserts thread lines into buffer.
-- [ ] Adds thread hints at top.
+- [x] Calls `notmuch.thread.show_thread(threadid)`.
+- [x] Inserts thread lines into buffer.
+- [x] Adds thread hints at top.
 - [x] Sets filetype to `mail`.
 - [x] Sets buffer non-modifiable.
-- [ ] Initializes cursor tracking.
+- [x] Initializes cursor tracking.
 
 ### Thread rendering
 
@@ -212,15 +212,15 @@ Test with fixture JSON from `notmuch show --format=json`.
 
 ### Thread keymaps/commands
 
-- [ ] `<Enter>` toggles fold.
-- [ ] `<Tab>` moves to next fold/message.
-- [ ] `<S-Tab>` moves to previous fold/message.
-- [ ] `a` opens attachment list.
-- [ ] `r` refreshes thread buffer.
-- [ ] `C` opens compose.
-- [ ] `R` opens reply.
-- [ ] `q` wipes buffer.
-- [ ] `+`, `-`, `=` operate on current message.
+- [x] `<Enter>` toggles fold.
+- [x] `<Tab>` moves to next fold/message.
+- [x] `<S-Tab>` moves to previous fold/message.
+- [x] `a` opens attachment list.
+- [x] `r` refreshes thread buffer.
+- [x] `C` opens compose.
+- [x] `R` opens reply.
+- [x] `q` wipes buffer.
+- [x] `+`, `-`, `=` operate on current message.
 
 
 ---

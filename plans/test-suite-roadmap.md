@@ -376,17 +376,17 @@ Covered modules:
 
 ### Compose
 
-- [ ] `compose()` creates temp `*-compose.eml` file.
-- [ ] Inserts `From`, `To`, `Cc`, `Subject`, blank line, body hint.
-- [ ] Optional recipient argument populates `To`.
-- [ ] Uses configured sender from `config.options.from`.
-- [ ] Creates attachment buffer.
-- [ ] Attachment-window keymap opens split.
-- [ ] Send keymap prompts confirmation.
-- [ ] Confirm “No” does not send.
-- [ ] Confirm “Yes” with no attachments builds plain message.
-- [ ] Confirm “Yes” with attachments builds MIME message.
-- [ ] Calls `sendmail()` after building message.
+- [x] `compose()` creates temp `*-compose.eml` file.
+- [x] Inserts `From`, `To`, `Cc`, `Subject`, blank line, body hint.
+- [x] Optional recipient argument populates `To`.
+- [x] Uses configured sender from `config.options.from`.
+- [x] Creates attachment buffer.
+- [x] Attachment-window keymap opens split.
+- [x] Send keymap prompts confirmation.
+- [x] Confirm “No” does not send.
+- [x] Confirm “Yes” with no attachments builds plain message.
+- [x] Confirm “Yes” with attachments builds MIME message.
+- [x] Calls `sendmail()` after building message.
 
 ### Reply
 

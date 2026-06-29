@@ -130,10 +130,10 @@ Covered modules:
 - [ ] `C` opens compose.
 - [ ] `+`, `-`, `=` operate on current thread.
 - [ ] Visual `+`, `-`, `=` operate on range.
-- [ ] `a` toggles `inbox`.
+- [x] `a` toggles `inbox`.
 - [ ] `A` removes `inbox unread`.
-- [ ] `x` toggles `unread`.
-- [ ] `f` toggles `flagged`.
+- [x] `x` toggles `unread`.
+- [x] `f` toggles `flagged`.
 - [ ] `dd` marks thread deleted and removes it from buffer.
 - [ ] Visual `d` deletes selected range.
 - [ ] `D` opens deleted-thread purge flow.
@@ -236,32 +236,32 @@ Covered modules:
 
 ### Message tags
 
-- [ ] `msg_add_tag()` adds one tag.
-- [ ] Adds multiple tags from space-separated input.
-- [ ] `msg_rm_tag()` removes one tag.
-- [ ] Removes multiple tags.
-- [ ] `msg_toggle_tag()` adds missing tag.
-- [ ] `msg_toggle_tag()` removes existing tag.
-- [ ] Gracefully returns when no current message ID is found.
-- [ ] Database is opened in writable mode.
-- [ ] Database is closed after operation.
+- [x] `msg_add_tag()` adds one tag.
+- [x] Adds multiple tags from space-separated input.
+- [x] `msg_rm_tag()` removes one tag.
+- [x] Removes multiple tags.
+- [x] `msg_toggle_tag()` adds missing tag.
+- [x] `msg_toggle_tag()` removes existing tag.
+- [x] Gracefully returns when no current message ID is found.
+- [x] Database is opened in writable mode.
+- [x] Database is closed after operation.
 
 ### Thread tags
 
-- [ ] `thread_add_tag()` operates on current line by default.
-- [ ] `thread_add_tag()` operates on visual/range lines.
-- [ ] Adds multiple tags.
-- [ ] `thread_rm_tag()` removes multiple tags.
-- [ ] `thread_toggle_tag()` toggles tags based on current thread tags.
-- [ ] Handles malformed/non-thread lines safely.
-- [ ] Database is closed after operation.
+- [x] `thread_add_tag()` operates on current line by default.
+- [x] `thread_add_tag()` operates on visual/range lines.
+- [x] Adds multiple tags.
+- [x] `thread_rm_tag()` removes multiple tags.
+- [x] `thread_toggle_tag()` toggles tags based on current thread tags.
+- [x] Handles malformed/non-thread lines safely.
+- [x] Database is closed after operation.
 
 ### Archive/read workflows
 
-- [ ] `a` toggles `inbox`.
-- [ ] `A` removes both `inbox` and `unread`.
-- [ ] `x` toggles `unread`.
-- [ ] `f` toggles `flagged`.
+- [x] `a` toggles `inbox`.
+- [x] `A` removes both `inbox` and `unread`.
+- [x] `x` toggles `unread`.
+- [x] `f` toggles `flagged`.
 
 ---
 

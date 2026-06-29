@@ -16,10 +16,82 @@ return {
       vim.bo.filetype = "notmuch-hello"
       vim.cmd("runtime ftplugin/notmuch-hello.lua")
       H.ok(map_rhs("n", "<CR>", buf), "missing buffer-local <CR>")
+      H.ok(map_rhs("n", "c", buf), "missing buffer-local c")
+      H.ok(map_rhs("n", "r", buf), "missing buffer-local r")
+      H.ok(map_rhs("n", "%", buf), "missing buffer-local %")
+      H.ok(map_rhs("n", "C", buf), "missing buffer-local C")
       H.ok(map_rhs("n", "q", buf), "missing buffer-local q")
       for _, m in ipairs(vim.api.nvim_get_keymap("n")) do
         H.ok(m.lhs ~= "<CR>", "ftplugin leaked a global <CR> mapping")
       end
+    end,
+  },
+  {
+    name = "notmuch-hello tag action mappings search, count, refresh, sync, compose, and close",
+    run = function()
+      local nm = require("notmuch")
+      local refresh = require("notmuch.refresh")
+      local sync = require("notmuch.sync")
+      local send = require("notmuch.send")
+
+      local original = {
+        search_terms = nm.search_terms,
+        count = nm.count,
+        refresh_hello_buffer = refresh.refresh_hello_buffer,
+        sync_maildir = sync.sync_maildir,
+        compose = send.compose,
+        notify = vim.notify,
+      }
+      local calls = {}
+
+      local ok, err = pcall(function()
+        nm.search_terms = function(query) calls.search = query end
+        nm.count = function(query)
+          calls.count = query
+          return "counted " .. query
+        end
+        refresh.refresh_hello_buffer = function() calls.refresh = true end
+        sync.sync_maildir = function() calls.sync = true end
+        send.compose = function() calls.compose = true end
+        vim.notify = function(message) calls.notify = message end
+
+        local buf = vim.api.nvim_create_buf(true, true)
+        vim.api.nvim_win_set_buf(0, buf)
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Hints: test", "", "inbox" })
+        vim.api.nvim_win_set_cursor(0, { 3, 0 })
+        vim.bo.filetype = "notmuch-hello"
+        vim.cmd("runtime ftplugin/notmuch-hello.lua")
+
+        map_rhs("n", "<CR>", buf)()
+        H.eq("tag:inbox", calls.search)
+
+        map_rhs("n", "c", buf)()
+        H.eq("tag:inbox", calls.count)
+        H.eq("counted tag:inbox", calls.notify)
+
+        map_rhs("n", "r", buf)()
+        H.eq(true, calls.refresh)
+
+        map_rhs("n", "%", buf)()
+        H.eq(true, calls.sync)
+
+        map_rhs("n", "C", buf)()
+        H.eq(true, calls.compose)
+
+        vim.api.nvim_feedkeys("q", "xt", false)
+        H.wait_until(function()
+          return not vim.api.nvim_buf_is_valid(buf)
+        end, 1000)
+      end)
+
+      nm.search_terms = original.search_terms
+      nm.count = original.count
+      refresh.refresh_hello_buffer = original.refresh_hello_buffer
+      sync.sync_maildir = original.sync_maildir
+      send.compose = original.compose
+      vim.notify = original.notify
+
+      if not ok then error(err, 0) end
     end,
   },
   {

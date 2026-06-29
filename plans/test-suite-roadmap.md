@@ -72,12 +72,12 @@ Covered modules:
 
 ### Tag actions from hello buffer
 
-- [ ] `<CR>` on a tag runs search for `tag:<tag>`.
-- [ ] `c` counts messages for selected tag.
-- [ ] `r` refreshes the tag buffer.
-- [ ] `%` starts mail sync.
-- [ ] `C` opens compose flow.
-- [ ] `q` wipes the buffer.
+- [x] `<CR>` on a tag runs search for `tag:<tag>`.
+- [x] `c` counts messages for selected tag.
+- [x] `r` refreshes the tag buffer.
+- [x] `%` starts mail sync.
+- [x] `C` opens compose flow.
+- [x] `q` wipes the buffer.
 
 ---
 

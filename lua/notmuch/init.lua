@@ -341,7 +341,7 @@ nm.count_hello_line = function()
     query = "tag:" .. line
   end
 
-  print(nm.count(query))
+  vim.notify(nm.count(query), vim.log.levels.INFO)
 end
 
 --- Handles <Enter> on the notmuch-hello dashboard

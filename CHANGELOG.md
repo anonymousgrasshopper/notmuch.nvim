@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Saved/pinned queries for the `:Notmuch` dashboard via the new `queries` setup option
+  - Saved queries are displayed above tags, can be opened with `<CR>`, and can be counted with `c`
+  - Invalid query entries are skipped with a warning during setup
+  - Dashboard syntax highlighting and documentation now cover the Saved/Pinned section
+- `notmuch.open_hello_line()` and `notmuch.count_hello_line()` helpers for resolving dashboard actions across saved queries and tag lines
 - Full headless Neovim test suite covering core modules, ftplugins, UI flows, and end-to-end notmuch workflows
 - Disposable notmuch fixture database setup using bundled mail corpora under `tests/fixtures/corpora`
 - Dependency-free Lua test runner and shared test helpers under `tests/`
@@ -18,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `notmuch-hello` mappings now route through dashboard-aware helpers so header/separator lines are ignored and saved queries use their configured search terms
+- `notmuch-hello` count results now use `vim.notify()` instead of `print()`
+- Buffer-local commands created by Lua ftplugins now use `force = true` so re-sourcing ftplugins can replace existing commands cleanly
 - Migrated ftplugin files from Vimscript to Lua (`mail`, `notmuch-attach`, `notmuch-hello`, and `notmuch-threads`)
 - Deleting threads from the thread list now removes them from the buffer immediately
 - Generated test state is now ignored by git

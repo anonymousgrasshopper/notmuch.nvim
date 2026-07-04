@@ -308,11 +308,71 @@ s.reply = function()
   end, { buffer = true })
 end
 
+local attachment_lines = function(buf_attach)
+  local lines = v.nvim_buf_get_lines(buf_attach, 0, -1, false)
+  local attachments = {}
+
+  for _, line in ipairs(lines) do
+    if line:find('%S') then
+      local filepath = vim.fn.expand(line)
+      filepath = vim.fn.fnamemodify(filepath, ':p')
+      table.insert(attachments, filepath)
+    end
+  end
+
+  return attachments
+end
+
+local open_compose_draft_buffer = function(draft)
+  local compose_filename = draft.eml_path
+
+  -- Create new buffer
+  local buf = v.nvim_create_buf(true, false)
+  v.nvim_win_set_buf(0, buf)
+  vim.cmd.edit(vim.fn.fnameescape(compose_filename))
+
+  v.nvim_buf_set_var(buf, 'notmuch_draft_json_path', draft.json_path)
+  v.nvim_buf_set_var(buf, 'notmuch_attachments', draft.metadata.attachments or {})
+
+  local buf_attach = v.nvim_create_buf(true, true)
+  v.nvim_buf_set_lines(buf_attach, 0, -1, false, draft.metadata.attachments or {})
+
+  v.nvim_create_autocmd({ 'TextChanged', 'TextChangedI', 'BufLeave' }, {
+    buffer = buf_attach,
+    callback = function()
+      local attachments = attachment_lines(buf_attach)
+      v.nvim_buf_set_var(buf, 'notmuch_attachments', attachments)
+      require('notmuch.draft').save_attachments(draft.json_path, attachments)
+    end,
+  })
+
+  -- Keymap for showing attachment_window
+  vim.keymap.set('n', config.options.keymaps.attachment_window, function()
+    vim.api.nvim_open_win(buf_attach, true, {
+      split = 'left',
+      win = 0
+    })
+  end, { buffer = true })
+
+  -- Keymap for sending the email
+  vim.keymap.set('n', config.options.keymaps.sendmail, function()
+    if confirm_sendmail() then
+      if u.empty_attachment_window(buf_attach) then
+        build_plain_msg(buf)
+      else
+        build_mime_msg(buf, buf_attach, compose_filename)
+      end
+
+      s.sendmail(compose_filename)
+    end
+  end, { buffer = true })
+end
+
 -- Compose a new email
 --
 -- This function creates a new email for the user to edit, with the standard
--- message headers and body. The mail content is stored in `/tmp/` so the user
--- can come back to it later if needed.
+-- message headers and body. The mail content is stored in the persistent drafts
+-- directory so the user can come back to it later if needed.
 --
 -- @param to string: recipient address (optionaal argument)
 --
@@ -339,35 +399,16 @@ s.compose = function(to)
     return
   end
 
-  local compose_filename = draft.eml_path
+  open_compose_draft_buffer(draft)
+end
 
-  -- Create new buffer
-  local buf = v.nvim_create_buf(true, false)
-  v.nvim_win_set_buf(0, buf)
-  vim.cmd.edit(vim.fn.fnameescape(compose_filename))
+s.open_compose_draft = function(eml_path)
+  local draft = require('notmuch.draft').load_compose_draft(eml_path)
+  if not draft then
+    return
+  end
 
-  local buf_attach = v.nvim_create_buf(true, true)
-
-  -- Keymap for showing attachment_window
-  vim.keymap.set('n', config.options.keymaps.attachment_window, function()
-    vim.api.nvim_open_win(buf_attach, true, {
-      split = 'left',
-      win = 0
-    })
-  end, { buffer = true })
-
-  -- Keymap for sending the email
-  vim.keymap.set('n', config.options.keymaps.sendmail, function()
-    if confirm_sendmail() then
-      if u.empty_attachment_window(buf_attach) then
-        build_plain_msg(buf)
-      else
-        build_mime_msg(buf, buf_attach, compose_filename)
-      end
-
-      s.sendmail(compose_filename)
-    end
-  end, { buffer = true })
+  open_compose_draft_buffer(draft)
 end
 
 return s

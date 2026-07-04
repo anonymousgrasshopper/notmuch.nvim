@@ -108,6 +108,23 @@ function D.sidecar_path(eml_path)
   return path
 end
 
+function D.read_metadata(path)
+  local ok, lines = pcall(vim.fn.readfile, path)
+  if not ok then
+    vim.notify('Failed to read draft metadata: ' .. path, vim.log.levels.ERROR)
+    return nil
+  end
+
+  local raw = table.concat(lines, '\n')
+  local decode_ok, metadata = pcall(vim.json.decode, raw)
+  if not decode_ok then
+    vim.notify('Failed to decode draft metadata: ' .. path, vim.log.levels.ERROR)
+    return nil
+  end
+
+  return metadata
+end
+
 function D.write_metadata(path, metadata)
   local ok, json = pcall(vim.json.encode, metadata)
   if not ok then
@@ -122,6 +139,27 @@ function D.write_metadata(path, metadata)
   end
 
   return true
+end
+
+function D.save_attachments(json_path, attachments)
+  local metadata = D.read_metadata(json_path)
+  if not metadata then
+    return false
+  end
+
+  metadata.attachments = attachments or {}
+  metadata.updated_at = now_utc()
+
+  return D.write_metadata(json_path, metadata)
+end
+
+function D.save_buffer_attachments(buf, attachments)
+  local ok, json_path = pcall(vim.api.nvim_buf_get_var, buf, 'notmuch_draft_json_path')
+  if not ok or not json_path then
+    return true
+  end
+
+  return D.save_attachments(json_path, attachments)
 end
 
 function D.create_compose_draft(lines)
@@ -171,6 +209,21 @@ function D.create_compose_draft(lines)
 
   if not D.write_metadata(json_path, metadata) then
     vim.fn.delete(eml_path)
+    return nil
+  end
+
+  return {
+    kind = 'compose',
+    eml_path = eml_path,
+    json_path = json_path,
+    metadata = metadata,
+  }
+end
+
+function D.load_compose_draft(eml_path)
+  local json_path = D.sidecar_path(eml_path)
+  local metadata = D.read_metadata(json_path)
+  if not metadata then
     return nil
   end
 

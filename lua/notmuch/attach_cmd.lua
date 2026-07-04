@@ -1,5 +1,6 @@
 local a = {}
 local u = require('notmuch.util')
+local draft = require('notmuch.draft')
 local v = vim.api
 
 a.attach_handler = function(buf)
@@ -29,6 +30,13 @@ a.attach_handler = function(buf)
     table.insert(attachments, filepath)
     v.nvim_buf_set_var(buf, 'notmuch_attachments', attachments)
 
+    if not draft.save_buffer_attachments(buf, attachments) then
+      table.remove(attachments)
+      v.nvim_buf_set_var(buf, 'notmuch_attachments', attachments)
+      vim.notify('Failed to persist attachment metadata: ' .. filepath, vim.log.levels.ERROR)
+      return
+    end
+
     -- Report success
     vim.notify(string.format('Attached: %s (%d total)', filepath, #attachments), vim.log.levels.INFO)
   end
@@ -55,8 +63,15 @@ a.remove_handler = function(buf)
     end
 
     -- Remove from `attachments` and update back to buffer
-    table.remove(attachments, found_index)
+    local removed = table.remove(attachments, found_index)
     v.nvim_buf_set_var(buf, 'notmuch_attachments', attachments)
+
+    if not draft.save_buffer_attachments(buf, attachments) then
+      table.insert(attachments, found_index, removed)
+      v.nvim_buf_set_var(buf, 'notmuch_attachments', attachments)
+      vim.notify('Failed to persist attachment metadata: ' .. filepath, vim.log.levels.ERROR)
+      return
+    end
 
     -- Report success
     vim.notify(string.format('Removed: %s (%d remaining)', filepath, #attachments), vim.log.levels.INFO)

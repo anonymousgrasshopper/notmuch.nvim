@@ -321,7 +321,6 @@ end
 --   require('notmuch.send').compose()
 s.compose = function(to)
   to = to or ''
-  local compose_filename = vim.fn.tempname() .. '-compose.eml'
 
   -- TODO: Add ability to modify default body message and signature
   local headers = {
@@ -334,13 +333,18 @@ s.compose = function(to)
     config.options.keymaps.attachment_window .. '". Send with "' .. config.options.keymaps.sendmail .. '".',
   }
 
+  -- Prepare draft
+  local draft = require('notmuch.draft').create_compose_draft(headers)
+  if not draft then
+    return
+  end
+
+  local compose_filename = draft.eml_path
+
   -- Create new buffer
   local buf = v.nvim_create_buf(true, false)
   v.nvim_win_set_buf(0, buf)
-  vim.cmd.edit(compose_filename)
-
-  -- Populate with header fields (date, to, subject)
-  v.nvim_buf_set_lines(buf, 0, -1, false, headers)
+  vim.cmd.edit(vim.fn.fnameescape(compose_filename))
 
   local buf_attach = v.nvim_create_buf(true, true)
 

@@ -59,6 +59,9 @@ C.defaults = function()
     suppress_deprecation_warning = false, -- Used for API deprecation warning suppression
     render_html_body = false, -- True means prioritize displaying rendered HTML
     thread_view_mode = "threaded", -- "threaded" | "newest-first" | "oldest-first" - Thread view display mode
+    drafts = {
+      folder = vim.fs.joinpath(vim.fn.stdpath("data"), "notmuch.nvim", "drafts"),
+    },
     open_handler = function(attachment)
       require('notmuch.handlers').default_open_handler(attachment)
     end,
@@ -118,6 +121,11 @@ C.setup = function(opts)
       end
     end
     C.options.queries = valid
+  end
+
+  -- Expand path for drafts if overridden
+  if C.options.drafts and C.options.drafts.folder then
+    C.options.drafts.folder = vim.fn.expand(C.options.drafts.folder)
   end
 
   return true

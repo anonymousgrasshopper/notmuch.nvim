@@ -60,6 +60,11 @@ nm.setup = function(opts)
     nargs = "*",
     complete = require("notmuch.completion").comp_address
   })
+  vim.api.nvim_create_user_command("NotmuchDrafts", function()
+    require('notmuch.send').select_compose_draft()
+  end, {
+    desc = "Select and open drafts",
+  })
 end
 
 -- Launch `notmuch.nvim` landing page

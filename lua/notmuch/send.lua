@@ -411,4 +411,58 @@ s.open_compose_draft = function(eml_path)
   open_compose_draft_buffer(draft)
 end
 
+local new_compose_draft_item = {
+  action = 'new_compose'
+}
+
+local format_compose_draft_item = function(item)
+  if item.action == 'new_compose' then
+    return '➕ Compose new draft'
+  end
+
+  local draft = item.draft
+  local updated = draft.metadata.updated_at or draft.metadata.created_at or 'unknown'
+  local subject = draft.subject or '[No subject]'
+  local attachments = draft.metadata.attachments or {}
+  local attach = #attachments > 0 and (' 📎' .. #attachments) or ''
+
+  return string.format('%s %s%s', updated, subject, attach)
+end
+
+s.select_compose_draft = function()
+  local drafts = require('notmuch.draft').list_compose_drafts()
+  if not drafts then
+    return
+  end
+
+  local items = {
+    new_compose_draft_item,
+  }
+
+  for _, draft in ipairs(drafts) do
+    table.insert(items, {
+      action = 'open_compose',
+      draft = draft,
+    })
+  end
+
+  vim.ui.select(items, {
+    prompt = 'Select compose draft:',
+    format_item = format_compose_draft_item,
+  }, function(choice)
+    if not choice then
+      return
+    end
+
+    if choice.action == 'new_compose' then
+      s.compose()
+      return
+    end
+
+    if choice.action == 'open_compose' then
+      s.open_compose_draft(choice.draft.eml_path)
+    end
+  end)
+end
+
 return s

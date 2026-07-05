@@ -99,6 +99,35 @@ local function ensure_dir(path)
   return true
 end
 
+local function extract_draft_header(eml_path, header_name)
+  local ok, lines = pcall(vim.fn.readfile, eml_path, "", 50)
+  if not ok then
+    return nil
+  end
+
+  local prefix = header_name:lower() .. ":"
+
+  for _, line in ipairs(lines) do
+    if line == "" then
+      break
+    end
+
+    if line:lower():sub(1, #prefix) == prefix then
+      return vim.trim(line:sub(#prefix + 1))
+    end
+  end
+
+  return nil
+end
+
+local function extract_draft_subject(eml_path)
+  local subject = extract_draft_header(eml_path, 'Subject')
+  if not subject or subject == "" then
+    return '[No subject]'
+  end
+  return subject
+end
+
 function D.compose_dir()
   return vim.fs.joinpath(config.options.drafts.folder, 'compose')
 end
@@ -172,7 +201,7 @@ function D.create_compose_draft(lines)
     if type(line) ~= 'string' then
       vim.notify(
         string.format('create_compose_draft expected line %d to be a string', i),
-	vim.log.levels.ERROR
+        vim.log.levels.ERROR
       )
       return nil
     end
@@ -232,7 +261,35 @@ function D.load_compose_draft(eml_path)
     eml_path = eml_path,
     json_path = json_path,
     metadata = metadata,
+    subject = extract_draft_subject(eml_path),
   }
+end
+
+function D.list_compose_drafts()
+  local dir = D.compose_dir()
+  if not ensure_dir(dir) then
+    return nil
+  end
+
+  local paths = vim.fn.globpath(dir, '*.eml', false, true)
+  local drafts = {}
+
+  for _, eml_path in ipairs(paths) do
+    local draft = D.load_compose_draft(eml_path)
+
+    if draft and draft.kind == 'compose' then
+      table.insert(drafts, draft)
+    end
+  end
+
+  table.sort(drafts, function (a, b)
+    local a_time = a.metadata.updated_at or a.metadata.created_at or ''
+    local b_time = b.metadata.updated_at or b.metadata.created_at or ''
+
+    return a_time > b_time
+  end)
+
+  return drafts
 end
 
 return D

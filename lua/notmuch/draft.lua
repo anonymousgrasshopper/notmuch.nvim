@@ -292,4 +292,63 @@ function D.list_compose_drafts()
   return drafts
 end
 
+function D.mark_sent(json_path)
+  local metadata = D.read_metadata(json_path)
+  if not metadata then
+    return false
+  end
+
+  local now = now_utc()
+  metadata.sent_at = now
+  metadata.updated_at = now
+
+  return D.write_metadata(json_path, metadata)
+end
+
+function D.delete_draft(draft_or_eml_path)
+  local eml_path
+  local json_path
+
+  if type(draft_or_eml_path) == 'table' then
+    eml_path = draft_or_eml_path.eml_path
+    if eml_path then
+      json_path = draft_or_eml_path.json_path or D.sidecar_path(eml_path)
+    end
+  elseif type(draft_or_eml_path) == 'string' then
+    eml_path = draft_or_eml_path
+    json_path = D.sidecar_path(eml_path)
+  else
+    vim.notify('delete_draft expected draft object or eml path', vim.log.levels.ERROR)
+    return false
+  end
+
+  if not eml_path or eml_path == '' then
+    vim.notify('delete_draft missing eml path', vim.log.levels.ERROR)
+    return false
+  end
+
+  if not eml_path:match('%.eml$') then
+    vim.notify('delete_draft expected .eml path: ' .. eml_path, vim.log.levels.ERROR)
+    return false
+  end
+
+  local ok = true
+
+  if vim.uv.fs_stat(eml_path) then
+    if vim.fn.delete(eml_path) ~= 0 then
+      vim.notify('Failed to delete draft file: ' .. eml_path, vim.log.levels.ERROR)
+      ok = false
+    end
+  end
+
+  if json_path and vim.uv.fs_stat(json_path) then
+    if vim.fn.delete(json_path) ~= 0 then
+      vim.notify('Failed to delete draft metadata: ' .. json_path, vim.log.levels.ERROR)
+      ok = false
+    end
+  end
+
+  return ok
+end
+
 return D

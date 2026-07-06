@@ -543,18 +543,33 @@ local new_compose_draft_item = {
   action = 'new_compose'
 }
 
+local function format_draft_timestamp(timestamp)
+  if not timestamp or timestamp == vim.NIL or timestamp == '' then
+    return 'unknown'
+  end
+
+  local date, hour, min = timestamp:match('^(%d%d%d%d%-%d%d%-%d%d)T(%d%d):(%d%d)')
+  if not date then
+    return timestamp
+  end
+
+  return string.format('%s %s:%s', date, hour, min)
+end
+
 local format_compose_draft_item = function(item)
   if item.action == 'new_compose' then
     return '➕ Compose new draft'
   end
 
   local draft = item.draft
-  local updated = draft.metadata.updated_at or draft.metadata.created_at or 'unknown'
+  local kind = item.draft.kind
+  local timestamp = draft.metadata.updated_at or draft.metadata.created_at
+  local updated = format_draft_timestamp(timestamp)
   local subject = draft.subject or '[No subject]'
   local attachments = draft.metadata.attachments or {}
-  local attach = #attachments > 0 and (' 📎' .. #attachments) or ''
+  local attach = #attachments > 0 and ('(📎' .. #attachments .. ')') or ''
 
-  return string.format('%s %s%s', updated, subject, attach)
+  return string.format('[%s] %s - %s %s', kind, updated, subject, attach)
 end
 
 s.select_compose_draft = function()

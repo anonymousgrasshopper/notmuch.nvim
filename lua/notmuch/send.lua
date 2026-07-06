@@ -158,6 +158,95 @@ local build_mime_msg_from_attachments = function(buf, attachment_paths, message_
   vim.cmd('silent! write!')
 end
 
+local build_plain_msg_file = function(buf, output_filename)
+  local main_lines = v.nvim_buf_get_lines(buf, 0, -1, false)
+  local attributes, msg = m.get_msg_attributes(main_lines)
+  local plain_msg = {}
+
+  for key, value in pairs(attributes) do
+    table.insert(plain_msg, key .. ": " .. value)
+  end
+
+  table.insert(plain_msg, "MIME-Version: 1.0")
+  table.insert(plain_msg, "Content-Type: text/plain; charset=utf-8")
+  table.insert(plain_msg, "Content-Transfer-Encoding: 8bit")
+  table.insert(plain_msg, "")
+
+  for _, line in ipairs(msg) do
+    table.insert(plain_msg, line)
+  end
+
+  return vim.fn.writefile(plain_msg, output_filename) == 0
+end
+
+local build_mime_msg_file = function(buf, attachment_paths, output_filename)
+  local main_lines = v.nvim_buf_get_lines(buf, 0, -1, false)
+  local attributes, msg = m.get_msg_attributes(main_lines)
+  local body_filename = vim.fn.tempname() .. '-notmuch-body.txt'
+
+  local ok, err = pcall(function()
+    local attachments = m.create_mime_attachments(attachment_paths)
+
+    if vim.fn.writefile(msg, body_filename) ~= 0 then
+      error('Failed to write message body temp file: ' .. body_filename)
+    end
+
+    local mimes = { {
+      file = body_filename,
+      type = "text/plain; charset=utf-8",
+    } }
+
+    for _, attachment in ipairs(attachments) do
+      table.insert(mimes, attachment)
+    end
+
+    local mime_table = {
+      version = "Mime-Version: 1.0",
+      type = "multipart/mixed",
+      encoding = "8 bit",
+      attributes = attributes,
+      mime = mimes,
+    }
+
+    local mime_msg = m.make_mime_msg(mime_table)
+    if vim.fn.writefile(mime_msg, output_filename) ~= 0 then
+      error('Failed to write send temp file: ' .. output_filename)
+    end
+  end)
+
+  if vim.uv.fs_stat(body_filename) then
+    vim.fn.delete(body_filename)
+  end
+
+  if not ok then
+    vim.notify(tostring(err), vim.log.levels.ERROR)
+    return false
+  end
+
+  return true
+end
+
+local build_send_file = function(buf, attachment_paths)
+  local send_filename = vim.fn.tempname() .. '-notmuch-send.eml'
+  local ok
+
+  if #attachment_paths == 0 then
+    ok = build_plain_msg_file(buf, send_filename)
+  else
+    ok = build_mime_msg_file(buf, attachment_paths, send_filename)
+  end
+
+  if not ok then
+    if vim.uv.fs_stat(send_filename) then
+      vim.fn.delete(send_filename)
+    end
+    vim.notify('Failed to build email for sending', vim.log.levels.ERROR)
+    return nil
+  end
+
+  return send_filename
+end
+
 -- Send a completed message
 --
 -- This function takes a file containing a completed message and send it to the
@@ -175,9 +264,14 @@ end
 --
 -- @usage
 --   require('notmuch.send').sendmail('/tmp/my_new_email.eml')
-s.sendmail = function(filename)
+s.sendmail = function(filename, opts)
+  opts = opts or {}
+
   if not vim.loop.fs_stat(filename) then
     vim.notify('❌ Email file not found: ' .. filename, vim.log.levels.ERROR)
+    if opts.on_failure then
+      opts.on_failure(-1)
+    end
     return false
   end
 
@@ -215,8 +309,14 @@ s.sendmail = function(filename)
       -- Defer notification on success because of buffer close redraw
       if exit_code == 0 then
         vim.defer_fn(function() vim.notify('✅ Email sent successfully', vim.log.levels.INFO) end, 500)
+        if opts.on_success then
+          opts.on_success()
+        end
       else
         vim.notify('❌ Failed to send email (exit code: ' .. exit_code .. ')', vim.log.levels.ERROR)
+        if opts.on_failure then
+          opts.on_failure(exit_code)
+        end
       end
     end
   })
@@ -323,6 +423,40 @@ local attachment_lines = function(buf_attach)
   return attachments
 end
 
+local send_compose_draft = function(buf, buf_attach, draft)
+  v.nvim_buf_call(buf, function()
+    vim.cmd('silent! write')
+  end)
+
+  local attachments = attachment_lines(buf_attach)
+  v.nvim_buf_set_var(buf, 'notmuch_attachments', attachments)
+  if not require('notmuch.draft').save_attachments(draft.json_path, attachments) then
+    vim.notify('Failed to persist draft attachment metadata before sending', vim.log.levels.ERROR)
+    return false
+  end
+
+  local send_filename = build_send_file(buf, attachments)
+  if not send_filename then
+    return false
+  end
+
+  return s.sendmail(send_filename, {
+    on_success = function()
+      vim.fn.delete(send_filename)
+      local draft_module = require('notmuch.draft')
+
+      if config.options.drafts.delete_sent then
+        draft_module.delete_draft(draft)
+      else
+        draft_module.mark_sent(draft.json_path)
+      end
+    end,
+    on_failure = function()
+      vim.fn.delete(send_filename)
+    end,
+  })
+end
+
 local open_compose_draft_buffer = function(draft)
   local compose_filename = draft.eml_path
 
@@ -357,13 +491,7 @@ local open_compose_draft_buffer = function(draft)
   -- Keymap for sending the email
   vim.keymap.set('n', config.options.keymaps.sendmail, function()
     if confirm_sendmail() then
-      if u.empty_attachment_window(buf_attach) then
-        build_plain_msg(buf)
-      else
-        build_mime_msg(buf, buf_attach, compose_filename)
-      end
-
-      s.sendmail(compose_filename)
+      send_compose_draft(buf, buf_attach, draft)
     end
   end, { buffer = true })
 end

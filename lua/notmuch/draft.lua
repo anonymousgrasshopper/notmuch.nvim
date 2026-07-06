@@ -132,6 +132,59 @@ function D.compose_dir()
   return vim.fs.joinpath(config.options.drafts.folder, 'compose')
 end
 
+function D.replies_dir()
+  return vim.fs.joinpath(config.options.drafts.folder, 'replies')
+end
+
+function D.reply_group_dir(message_id)
+  return vim.fs.joinpath(D.replies_dir(), vim.fn.sha256(message_id))
+end
+
+function D.reply_group_metadata_path(message_id)
+  return vim.fs.joinpath(D.reply_group_dir(message_id), 'message.json')
+end
+
+function D.ensure_reply_group(message_id)
+  -- Validate the input `message_id` format
+  if type(message_id) ~= 'string' or message_id == '' then
+    vim.notify('ensure_reply_group expected message id string', vim.log.levels.ERROR)
+    return nil
+  end
+
+  -- Ensure reply group directory (<hash of message_id>/) exists or create
+  local dir = D.reply_group_dir(message_id)
+  if not ensure_dir(dir) then
+    return nil
+  end
+
+  -- Ensure `<group_dir>/message.json` metadata file exists or create
+  local metadata_path = D.reply_group_metadata_path(message_id)
+  if not vim.uv.fs_stat(metadata_path) then
+    local metadata = {
+      schema_version = 1,
+      message_id = message_id,
+    }
+
+    if not D.write_metadata(metadata_path, metadata) then
+      return nil
+    end
+
+    return dir
+  end
+
+  -- If metadata file already exists, verify that valid message_id metadata
+  local metadata = D.read_metadata(metadata_path)
+  if not metadata then
+    return nil
+  end
+  if metadata.message_id ~= message_id then
+    vim.notify('Reply draft group metadata does not match message id: ' .. metadata_path, vim.log.levels.ERROR)
+    return nil
+  end
+
+  return dir
+end
+
 function D.sidecar_path(eml_path)
   local path = eml_path:gsub('%.eml$', '.json')
   return path
@@ -249,6 +302,69 @@ function D.create_compose_draft(lines)
   }
 end
 
+function D.create_reply_draft(message_id, lines)
+  -- Validate message_id
+  if type(message_id) ~= 'string' or message_id == '' then
+    vim.notify('create_reply_draft expected message id string', vim.log.levels.ERROR)
+    return nil
+  end
+
+  -- Validate lines table
+  if type(lines) ~= 'table' then
+    vim.notify('create_reply_draft expected lines table', vim.log.levels.ERROR)
+    return nil
+  end
+
+  -- Validate lines elements
+  for i, line in ipairs(lines) do
+    if type(line) ~= 'string' then
+      vim.notify(string.format('create_reply_draft expected line %d to be a string', i), vim.log.levels.ERROR)
+      return nil
+    end
+  end
+
+  local dir = D.ensure_reply_group(message_id)
+  if not dir then
+    return nil
+  end
+
+  -- Prepare metadata for the reply
+  local timestamp = os.date("!%Y%m%dT%H%M%SZ")
+  local basename = string.format("reply-%s-%s", timestamp, random_suffix())
+  local eml_path = vim.fs.joinpath(dir, basename .. '.eml')
+  local json_path = D.sidecar_path(eml_path)
+  local created_at = now_utc()
+  local metadata = {
+    schema_version = 1,
+    kind = 'reply',
+    message_id = message_id,
+    attachments = {},
+    created_at = created_at,
+    updated_at = created_at,
+    sent_at = vim.NIL,
+  }
+
+  -- Write `.eml` file with reply mail content
+  local ok_eml = vim.fn.writefile(lines, eml_path)
+  if ok_eml ~= 0 then
+    vim.notify('Failed to write reply draaft: ' .. eml_path, vim.log.levels.ERROR)
+    return nil
+  end
+
+  -- Write metadata to json, rollback if failed
+  if not D.write_metadata(json_path, metadata) then
+    vim.fn.delete(eml_path)
+  end
+
+  return {
+    kind = 'reply',
+    eml_path = eml_path,
+    json_path = json_path,
+    metadata = metadata,
+    subject = extract_draft_subject(eml_path),
+  }
+end
+
 function D.load_compose_draft(eml_path)
   local json_path = D.sidecar_path(eml_path)
   local metadata = D.read_metadata(json_path)
@@ -258,6 +374,35 @@ function D.load_compose_draft(eml_path)
 
   return {
     kind = 'compose',
+    eml_path = eml_path,
+    json_path = json_path,
+    metadata = metadata,
+    subject = extract_draft_subject(eml_path),
+  }
+end
+
+function D.load_reply_draft(eml_path)
+  -- Validate eml_path
+  if type(eml_path) ~= 'string' or eml_path == '' then
+    vim.notify('load_reply_draft expected eml path string', vim.log.levels.ERROR)
+    return nil
+  end
+
+  -- Fetch metadata
+  local json_path = D.sidecar_path(eml_path)
+  local metadata = D.read_metadata(json_path)
+  if not metadata then
+    return nil
+  end
+
+  -- Defensively check against wrong `kind`
+  if metadata.kind ~= 'reply' then
+    vim.notify('Draft is not a reply draft: ' .. eml_path, vim.log.levels.ERROR)
+    return nil
+  end
+
+  return {
+    kind = 'reply',
     eml_path = eml_path,
     json_path = json_path,
     metadata = metadata,
@@ -289,6 +434,47 @@ function D.list_compose_drafts()
   end
 
   table.sort(drafts, function (a, b)
+    local a_time = a.metadata.updated_at or a.metadata.created_at or ''
+    local b_time = b.metadata.updated_at or b.metadata.created_at or ''
+
+    return a_time > b_time
+  end)
+
+  return drafts
+end
+
+function D.list_reply_drafts(message_id)
+  -- Validate message_id input
+  if type(message_id) ~= 'string' or message_id == '' then
+    vim.notify('list_reply_drafts expected message id string', vim.log.levels.ERROR)
+    return nil
+  end
+
+  -- Fetch reply group dir (don't create new one if it doesn't exist already)
+  local dir = D.reply_group_dir(message_id)
+  local stat = vim.uv.fs_stat(dir)
+  if not stat then
+    return nil
+  end
+
+  -- Validate reply group dir is a directory if exists
+  if stat.type ~= 'directory' then
+    vim.notify('Reply drafts path is not a directory: ' .. dir, vim.log.levels.ERROR)
+    return nil
+  end
+
+  -- Get all `.eml` files in this reply group
+  local paths = vim.fn.globpath(dir, '*.eml', false, true)
+  local drafts = {}
+  for _, eml_path in ipairs(paths) do
+    local draft = D.load_reply_draft(eml_path)
+    if draft and draft.kind == 'reply' and draft.metadata.message_id == message_id then
+      table.insert(drafts, draft)
+    end
+  end
+
+  -- Sort by updated/created timestamp, descending
+  table.sort(drafts, function(a, b)
     local a_time = a.metadata.updated_at or a.metadata.created_at or ''
     local b_time = b.metadata.updated_at or b.metadata.created_at or ''
 

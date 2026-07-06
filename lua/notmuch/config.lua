@@ -62,6 +62,7 @@ C.defaults = function()
     drafts = {
       folder = vim.fs.joinpath(vim.fn.stdpath("data"), "notmuch.nvim", "drafts"),
       delete_sent = false,
+      show_sent_drafts = false,
     },
     open_handler = function(attachment)
       require('notmuch.handlers').default_open_handler(attachment)

@@ -265,6 +265,10 @@ function D.load_compose_draft(eml_path)
   }
 end
 
+local function is_unsent(draft)
+  return draft.metadata.sent_at == nil or draft.metadata.sent_at == vim.NIL
+end
+
 function D.list_compose_drafts()
   local dir = D.compose_dir()
   if not ensure_dir(dir) then
@@ -277,7 +281,9 @@ function D.list_compose_drafts()
   for _, eml_path in ipairs(paths) do
     local draft = D.load_compose_draft(eml_path)
 
-    if draft and draft.kind == 'compose' then
+    if draft
+      and draft.kind == 'compose'
+      and (config.options.drafts.show_sent_drafts or is_unsent(draft)) then
       table.insert(drafts, draft)
     end
   end

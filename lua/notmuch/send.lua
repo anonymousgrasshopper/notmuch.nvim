@@ -1,5 +1,4 @@
 local s = {}
-local u = require('notmuch.util')
 local m = require('notmuch.mime')
 local thread = require('notmuch.thread')
 local v = vim.api
@@ -33,129 +32,19 @@ local confirm_sendmail = function()
   end
 end
 
---- Builds plain text msg from contents into single-part MIME message of main
---- msg buffer and outputs it in place.
----
---- If the composed email has no attachments, it makes more sense (cheaper and
---- more idiomatic) to send as a single part (not MIME `multipart/mixed`) of
---- type `text/plain; charset=UTF-8`.
----
---- @param buf integer: buffer ID of the message compose file
-local build_plain_msg = function(buf)
-  local main_lines = v.nvim_buf_get_lines(buf, 0, -1, false)
+local attachment_lines = function(buf_attach)
+  local lines = v.nvim_buf_get_lines(buf_attach, 0, -1, false)
+  local attachments = {}
 
-  -- Extract attributes and remove from main message buffer `buf`
-  local attributes, msg = m.get_msg_attributes(main_lines)
-  v.nvim_buf_set_lines(buf, 0, -1, false, msg)
-  vim.cmd('silent! write!')
-
-  -- Build MIME single-part email:
-  -- - Header
-  -- - MIME headers
-  -- - Blank line
-  -- - Body
-  local plain_msg = {}
-
-  -- Add email headers (To, From, Subject, etc.)
-  for key, value in pairs(attributes) do
-    table.insert(plain_msg, key .. ": " .. value)
+  for _, line in ipairs(lines) do
+    if line:find('%S') then
+      local filepath = vim.fn.expand(line)
+      filepath = vim.fn.fnamemodify(filepath, ':p')
+      table.insert(attachments, filepath)
+    end
   end
 
-  -- Add MIME headers (required for UTF-8 support per RFC2045)
-  table.insert(plain_msg, "MIME-Version: 1.0")
-  table.insert(plain_msg, "Content-Type: text/plain; charset=utf-8")
-  table.insert(plain_msg, "Content-Transfer-Encoding: 8bit")
-
-  -- Add blank line separator (required by RFC5322)
-  table.insert(plain_msg, "")
-
-  -- Add message body
-  for _, line in ipairs(msg) do
-    table.insert(plain_msg, line)
-  end
-
-  -- Write complete email to file
-  v.nvim_buf_set_lines(buf, 0, -1, false, plain_msg)
-  vim.cmd('silent! write!')
-end
-
--- Builds mime msg from contents of main msg buffer and attachment buffer
-local build_mime_msg = function(buf, buf_attach, compose_filename)
-  local attach_lines = vim.api.nvim_buf_get_lines(buf_attach, 0, -1, false)
-  local main_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-
-  -- Extract headers and body (read-only operation)
-  local attributes, msg = m.get_msg_attributes(main_lines)
-
-  -- VALIDATE attachments BEFORE modifying buffer/file
-  -- If validation fails, error is thrown here and buffer remains intact
-  local attachments = m.create_mime_attachments(attach_lines)
-
-  -- Now safe to modify buffer - attachments are validated
-  v.nvim_buf_set_lines(buf, 0, -1, false, msg)
-  vim.cmd('silent! write!')
-  local mimes = { {
-    file = compose_filename,
-    type = "text/plain; charset=utf-8",
-  } }
-
-  for _, v in ipairs(attachments) do
-    table.insert(mimes, v)
-  end
-
-
-
-  local mime_table = {
-    version = "Mime-Version: 1.0",
-    type = "multipart/mixed", -- or multipart/alternative
-    encoding = "8 bit",
-    attributes = attributes,
-    mime = mimes,
-  }
-
-
-  local mime_msg = m.make_mime_msg(mime_table)
-  v.nvim_buf_set_lines(buf, 0, -1, false, mime_msg)
-
-
-  vim.cmd('silent! write!')
-end
-
-local build_mime_msg_from_attachments = function(buf, attachment_paths, message_filename)
-  local main_lines = v.nvim_buf_get_lines(buf, 0, -1, false)
-
-  -- Extract headers and body (read-only operation)
-  local attributes, msg = m.get_msg_attributes(main_lines)
-
-  -- VALIDATE attachments BEFORE modifying buffer/file
-  local attachments = m.create_mime_attachments(attachment_paths)
-
-  -- Safe to modify buffer now
-  v.nvim_buf_set_lines(buf, 0, -1, false, msg)
-  vim.cmd('silent! write!')
-
-  -- Build MIME parts: main body + attachments
-  local mimes = { {
-    file = message_filename,
-    type = "text/plain; charset=utf-8",
-  } }
-
-  for _, attachment in ipairs(attachments) do
-    table.insert(mimes, attachment)
-  end
-
-  local mime_table = {
-    version = "Mime-Version: 1.0",
-    type = "multipart/mixed",
-    encoding = "8 bit",
-    attributes = attributes,
-    mime = mimes,
-  }
-
-  local mime_msg = m.make_mime_msg(mime_table)
-  v.nvim_buf_set_lines(buf, 0, -1, false, mime_msg)
-
-  vim.cmd('silent! write!')
+  return attachments
 end
 
 local build_plain_msg_file = function(buf, output_filename)
@@ -330,97 +219,29 @@ s.sendmail = function(filename, opts)
   return true
 end
 
--- Reply to an email message
---
--- This function uses `notmuch reply` to generate and prepare a reply draft to a
--- message by scanning for the `id` of the message you want to reply to. The
--- draft file will be stored in `tmp/` and a keymap (default `<C-c><C-c>`) to
--- allow sending directly from within nvim
---
--- @usage
---   -- Typically you would just press `R` on a message in a thread
---   require('notmuch.send').reply()
-s.reply = function()
-  -- Get msg id of the mail to be replied to
-  local id = thread.get_current_message_id()
-  if not id then return end
+local generate_reply_lines = function(message_id)
+  -- Use `notmuch-reply(1)` to generate the reply content
+  local result = vim.system({ 'notmuch', 'reply', 'id:' .. message_id }, {
+    text = true,
+  }):wait()
 
-  -- Create new draft mail to hold reply
-  local sanitized_id = id:gsub('/', '-')
-  local reply_filename = '/tmp/reply-' .. sanitized_id .. '.eml'
-
-  -- Create and edit buffer containing reply file
-  local buf = v.nvim_create_buf(true, false)
-  v.nvim_win_set_buf(0, buf)
-  vim.cmd.edit(reply_filename)
-
-  -- If first time replying, generate draft. Otherwise, no need to duplicate
-  if not u.file_exists(reply_filename) then
-    vim.cmd('silent 0read! notmuch reply id:' .. id)
+  -- Validate command success
+  if result.code ~= 0 then
+    vim.notify('Failed to generate reply:\n' .. (result.stderr or ''), vim.log.levels.ERROR)
+    return nil
   end
 
-  vim.bo.bufhidden = "wipe"          -- Automatically wipe buffer when closed
-  v.nvim_win_set_cursor(0, { 1, 0 }) -- Return cursor to top of file
-
-  -- Initialize attachments variable
-  -- Sample "attachment" object:
-  --   {
-  --     file = 'path/to/attachment',
-  --     size = uv.fs_stat(),
-  --     mime = mime.get_mime_type()
-  --     valid = true or false -- u.validate_attachment_file()
-  --   }
-  vim.api.nvim_buf_set_var(buf, 'notmuch_attachments', {})
-
-  -- Define commands for attachment management (attach_cmd.lua)
-  local attach_cmd = require('notmuch.attach_cmd')
-
-  v.nvim_buf_create_user_command(buf, 'Attach', attach_cmd.attach_handler(buf), {
-    nargs = 1,
-    complete = 'file',
-    desc = 'Add file to email attachments'
-  })
-
-  v.nvim_buf_create_user_command(buf, 'AttachRemove', attach_cmd.remove_handler(buf), {
-    nargs = 1,
-    complete = attach_cmd.remove_completion(buf),
-    desc = 'Remove attachment by filepath'
-  })
-
-  v.nvim_buf_create_user_command(buf, 'AttachList', attach_cmd.list_handler(buf), {
-    nargs = 0,
-    desc = 'List current email attachments'
-  })
-
-  -- Set keymap for sending
-  vim.keymap.set('n', config.options.keymaps.sendmail, function()
-    if confirm_sendmail() then
-      local attachments = v.nvim_buf_get_var(buf, 'notmuch_attachments')
-
-      if #attachments == 0 then
-        build_plain_msg(buf)
-      else
-        build_mime_msg_from_attachments(buf, attachments, reply_filename)
-      end
-
-      s.sendmail(reply_filename)
-    end
-  end, { buffer = true })
+  -- Return as table of lines to paste in buffer
+  return vim.split(result.stdout or '', '\n', { plain = true })
 end
 
-local attachment_lines = function(buf_attach)
-  local lines = v.nvim_buf_get_lines(buf_attach, 0, -1, false)
-  local attachments = {}
-
-  for _, line in ipairs(lines) do
-    if line:find('%S') then
-      local filepath = vim.fn.expand(line)
-      filepath = vim.fn.fnamemodify(filepath, ':p')
-      table.insert(attachments, filepath)
-    end
+local create_reply_draft = function(message_id)
+  local lines = generate_reply_lines(message_id)
+  if not lines then
+    return nil
   end
 
-  return attachments
+  return require('notmuch.draft').create_reply_draft(message_id, lines)
 end
 
 local send_draft = function(buf, buf_attach, draft)
@@ -537,6 +358,119 @@ s.compose = function(to)
   open_draft_buffer(draft)
 end
 
+local function format_draft_timestamp(timestamp)
+  if not timestamp or timestamp == vim.NIL or timestamp == '' then
+    return 'unknown'
+  end
+
+  local date, hour, min = timestamp:match('^(%d%d%d%d%-%d%d%-%d%d)T(%d%d):(%d%d)')
+  if not date then
+    return timestamp
+  end
+
+  return string.format('%s %s:%s', date, hour, min)
+end
+
+local new_compose_draft_item = {
+  action = 'new_compose'
+}
+
+local new_reply_draft_item = {
+  action = 'new_reply'
+}
+
+local format_compose_draft_item = function(item)
+  if item.action == 'new_compose' then
+    return '➕ Compose new draft'
+  end
+
+  local draft = item.draft
+  local kind = item.draft.kind
+  local timestamp = draft.metadata.updated_at or draft.metadata.created_at
+  local updated = format_draft_timestamp(timestamp)
+  local subject = draft.subject or '[No subject]'
+  local attachments = draft.metadata.attachments or {}
+  local attach = #attachments > 0 and ('(📎' .. #attachments .. ')') or ''
+
+  return string.format('[%s] %s - %s %s', kind, updated, subject, attach)
+end
+
+local format_reply_draft_item = function(item)
+  if item.action == 'new_reply' then
+    return '➕ New reply draft'
+  end
+
+  local draft = item.draft
+  local kind = draft.kind
+  local timestamp = draft.metadata.updated_at or draft.metadata.created_at
+  local updated = format_draft_timestamp(timestamp)
+  local subject = draft.subject or '[No subject]'
+  local attachments = draft.metadata.attachments or {}
+  local attach = #attachments > 0 and ('(📎' .. #attachments .. ')') or ''
+
+  return string.format('[%s] %s - %s %s', kind, updated, subject, attach)
+end
+
+local select_reply_draft = function(message_id, drafts)
+  local items = { new_reply_draft_item }
+
+  for _, draft in ipairs(drafts) do
+    table.insert(items, {
+      action = 'open_reply',
+      draft = draft,
+    })
+  end
+
+  vim.ui.select(items, {
+    prompt = 'Select reply draft:',
+    format_item = format_reply_draft_item,
+  }, function(choice)
+    if not choice then
+      return
+    end
+
+    if choice.action == 'new_reply' then
+      local draft = create_reply_draft(message_id)
+      if draft then
+        open_draft_buffer(draft)
+      end
+      return
+    end
+
+    if choice.action == 'open_reply' then
+      open_draft_buffer(choice.draft)
+    end
+  end)
+end
+
+-- Reply to an email message
+--
+-- This function opens or creates a persistent reply draft for the current
+-- message. If existing drafts for the message are found, the user can select
+-- one or create a new reply draft.
+--
+-- @usage
+--   -- Typically you would just press `R` on a message in a thread
+--   require('notmuch.send').reply()
+s.reply = function()
+  local message_id = thread.get_current_message_id()
+  if not message_id then
+    return
+  end
+
+  local drafts = require('notmuch.draft').list_reply_drafts(message_id) or {}
+
+  if #drafts == 0 then
+    local draft = create_reply_draft(message_id)
+    if draft then
+      open_draft_buffer(draft)
+    end
+    return
+  end
+
+  select_reply_draft(message_id, drafts)
+end
+
 s.open_compose_draft = function(eml_path)
   local draft = require('notmuch.draft').load_compose_draft(eml_path)
   if not draft then
@@ -553,39 +487,6 @@ s.open_reply_draft = function(eml_path)
   end
 
   open_draft_buffer(draft)
-end
-
-local new_compose_draft_item = {
-  action = 'new_compose'
-}
-
-local function format_draft_timestamp(timestamp)
-  if not timestamp or timestamp == vim.NIL or timestamp == '' then
-    return 'unknown'
-  end
-
-  local date, hour, min = timestamp:match('^(%d%d%d%d%-%d%d%-%d%d)T(%d%d):(%d%d)')
-  if not date then
-    return timestamp
-  end
-
-  return string.format('%s %s:%s', date, hour, min)
-end
-
-local format_compose_draft_item = function(item)
-  if item.action == 'new_compose' then
-    return '➕ Compose new draft'
-  end
-
-  local draft = item.draft
-  local kind = item.draft.kind
-  local timestamp = draft.metadata.updated_at or draft.metadata.created_at
-  local updated = format_draft_timestamp(timestamp)
-  local subject = draft.subject or '[No subject]'
-  local attachments = draft.metadata.attachments or {}
-  local attach = #attachments > 0 and ('(📎' .. #attachments .. ')') or ''
-
-  return string.format('[%s] %s - %s %s', kind, updated, subject, attach)
 end
 
 s.select_compose_draft = function()

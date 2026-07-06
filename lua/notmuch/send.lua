@@ -423,11 +423,13 @@ local attachment_lines = function(buf_attach)
   return attachments
 end
 
-local send_compose_draft = function(buf, buf_attach, draft)
+local send_draft = function(buf, buf_attach, draft)
+  -- Saves current draft mail content for good measure
   v.nvim_buf_call(buf, function()
     vim.cmd('silent! write')
   end)
 
+  -- Collect attachments for `buf_attach` (scratch) and save to draft metadata
   local attachments = attachment_lines(buf_attach)
   v.nvim_buf_set_var(buf, 'notmuch_attachments', attachments)
   if not require('notmuch.draft').save_attachments(draft.json_path, attachments) then
@@ -435,11 +437,13 @@ local send_compose_draft = function(buf, buf_attach, draft)
     return false
   end
 
+  -- Build the MIME-compliant email message in TMP directory
   local send_filename = build_send_file(buf, attachments)
   if not send_filename then
     return false
   end
 
+  -- Send with success and failure callbacks
   return s.sendmail(send_filename, {
     on_success = function()
       vim.fn.delete(send_filename)
@@ -457,20 +461,23 @@ local send_compose_draft = function(buf, buf_attach, draft)
   })
 end
 
-local open_compose_draft_buffer = function(draft)
-  local compose_filename = draft.eml_path
+local open_draft_buffer = function(draft)
+  local draft_filename = draft.eml_path
 
-  -- Create new buffer
+  -- Create new buffer for the draft
   local buf = v.nvim_create_buf(true, false)
   v.nvim_win_set_buf(0, buf)
-  vim.cmd.edit(vim.fn.fnameescape(compose_filename))
+  vim.cmd.edit(vim.fn.fnameescape(draft_filename))
 
+  -- Set buffer-local variables for metadata and attachments
   v.nvim_buf_set_var(buf, 'notmuch_draft_json_path', draft.json_path)
   v.nvim_buf_set_var(buf, 'notmuch_attachments', draft.metadata.attachments or {})
 
+  -- Create the attachment manager scratch buffer
   local buf_attach = v.nvim_create_buf(true, true)
   v.nvim_buf_set_lines(buf_attach, 0, -1, false, draft.metadata.attachments or {})
 
+  -- Setup autocmd for auto-syncing text in scratch buffer to attachments list
   v.nvim_create_autocmd({ 'TextChanged', 'TextChangedI', 'BufLeave' }, {
     buffer = buf_attach,
     callback = function()
@@ -491,7 +498,7 @@ local open_compose_draft_buffer = function(draft)
   -- Keymap for sending the email
   vim.keymap.set('n', config.options.keymaps.sendmail, function()
     if confirm_sendmail() then
-      send_compose_draft(buf, buf_attach, draft)
+      send_draft(buf, buf_attach, draft)
     end
   end, { buffer = true })
 end
@@ -527,7 +534,7 @@ s.compose = function(to)
     return
   end
 
-  open_compose_draft_buffer(draft)
+  open_draft_buffer(draft)
 end
 
 s.open_compose_draft = function(eml_path)
@@ -536,7 +543,16 @@ s.open_compose_draft = function(eml_path)
     return
   end
 
-  open_compose_draft_buffer(draft)
+  open_draft_buffer(draft)
+end
+
+s.open_reply_draft = function(eml_path)
+  local draft = require('notmuch.draft').load_reply_draft(eml_path)
+  if not draft then
+    return
+  end
+
+  open_draft_buffer(draft)
 end
 
 local new_compose_draft_item = {

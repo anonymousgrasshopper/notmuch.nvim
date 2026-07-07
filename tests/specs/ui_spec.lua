@@ -218,9 +218,11 @@ return {
       local old_confirm = vim.api.nvim_call_function
       local old_chansend = vim.fn.chansend
       local old_from, old_keymaps = config.options.from, config.options.keymaps
+      local old_drafts = vim.deepcopy(config.options.drafts)
       local sent_cmd
       config.options.from = "E2E Sender <sender@example.com>"
       config.options.keymaps = { sendmail = "<C-g><C-g>", attachment_window = "<C-g><C-a>" }
+      config.options.drafts = { folder = H.tmpdir() .. "/drafts", delete_sent = false, show_sent_drafts = false }
       vim.api.nvim_call_function = function() return 1 end
       vim.fn.chansend = function(job, data)
         sent_cmd = data
@@ -231,7 +233,7 @@ return {
         local attachment = H.write_file(H.tmpdir() .. "/compose-attachment.txt", "compose attachment\n")
         send.compose("compose@example.com")
         local main_buf = vim.api.nvim_get_current_buf()
-        H.matches(vim.api.nvim_buf_get_name(main_buf), "%-compose%.eml$")
+        H.matches(vim.api.nvim_buf_get_name(main_buf), "/drafts/compose/compose%-.*%.eml$")
         vim.api.nvim_buf_set_lines(main_buf, 5, -1, false, { "Compose E2E body" })
 
         map_callback("n", config.options.keymaps.attachment_window, main_buf)()
@@ -247,7 +249,9 @@ return {
         H.wait_until(function() return sent_cmd ~= nil end, 1500)
         H.contains(sent_cmd, "msmtp -t --read-envelope-from")
         H.contains(sent_cmd, " ; exit")
-        local text = table.concat(vim.api.nvim_buf_get_lines(main_buf, 0, -1, false), "\n")
+        local send_file = sent_cmd:match("<([^ ;]+)")
+        send_file = send_file and (send_file:match("^'(.+)'$") or send_file)
+        local text = table.concat(vim.fn.readfile(send_file), "\n")
         H.contains(text, "Content-Type: multipart/mixed")
         H.contains(text, "Content-Disposition: attachment; filename=\"compose-attachment.txt\"")
         H.contains(text, "Compose E2E body")
@@ -256,6 +260,7 @@ return {
       vim.api.nvim_call_function = old_confirm
       vim.fn.chansend = old_chansend
       config.options.from, config.options.keymaps = old_from, old_keymaps
+      config.options.drafts = old_drafts
       if not ok then error(err, 0) end
     end,
   },
@@ -267,7 +272,11 @@ return {
       local config = require("notmuch.config")
       local old_confirm = vim.api.nvim_call_function
       local old_chansend = vim.fn.chansend
+      local old_drafts = vim.deepcopy(config.options.drafts)
+      local old_keymaps = config.options.keymaps
       local sent_cmd
+      config.options.drafts = { folder = H.tmpdir() .. "/drafts", delete_sent = false, show_sent_drafts = false }
+      config.options.keymaps = { sendmail = "<C-g><C-g>", attachment_window = "<C-g><C-a>" }
       vim.api.nvim_call_function = function() return 1 end
       vim.fn.chansend = function(job, data)
         sent_cmd = data
@@ -281,22 +290,28 @@ return {
         vim.api.nvim_win_set_cursor(0, { msg.start_line, 0 })
         send.reply()
         local reply_buf = vim.api.nvim_get_current_buf()
-        H.matches(vim.api.nvim_buf_get_name(reply_buf), "reply%-.*%.eml$")
+        H.matches(vim.api.nvim_buf_get_name(reply_buf), "/drafts/replies/.*/reply%-.*%.eml$")
         H.contains(H.current_lines(), "Subject:")
 
         local attachment = H.write_file(H.tmpdir() .. "/reply-attachment.txt", "reply attachment\n")
-        vim.cmd("Attach " .. vim.fn.fnameescape(attachment))
-        H.same({ vim.fn.fnamemodify(attachment, ":p") }, vim.b.notmuch_attachments)
+        map_callback("n", config.options.keymaps.attachment_window, reply_buf)()
+        local attach_buf = vim.api.nvim_get_current_buf()
+        vim.api.nvim_buf_set_lines(attach_buf, 0, -1, false, { attachment })
+        vim.api.nvim_set_current_buf(reply_buf)
         map_callback("n", config.options.keymaps.sendmail, reply_buf)()
         H.wait_until(function() return sent_cmd ~= nil end, 1500)
         H.contains(sent_cmd, "msmtp -t --read-envelope-from")
-        local text = table.concat(vim.api.nvim_buf_get_lines(reply_buf, 0, -1, false), "\n")
+        local send_file = sent_cmd:match("<([^ ;]+)")
+        send_file = send_file and (send_file:match("^'(.+)'$") or send_file)
+        local text = table.concat(vim.fn.readfile(send_file), "\n")
         H.contains(text, "Content-Type: multipart/mixed")
         H.contains(text, "Content-Disposition: attachment; filename=\"reply-attachment.txt\"")
       end)
 
       vim.api.nvim_call_function = old_confirm
       vim.fn.chansend = old_chansend
+      config.options.drafts = old_drafts
+      config.options.keymaps = old_keymaps
       if not ok then error(err, 0) end
     end,
   },

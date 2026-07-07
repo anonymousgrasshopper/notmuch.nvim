@@ -78,21 +78,25 @@ return {
   {
     name = "notmuch.setup does not register commands if config setup fails",
     run = function()
-      for _, cmd in ipairs({ "Notmuch", "NmSearch", "Inbox", "ComposeMail" }) do
+      for _, cmd in ipairs({ "Notmuch", "NotmuchDrafts", "NmSearch", "Inbox", "ComposeMail" }) do
         pcall(vim.api.nvim_del_user_command, cmd)
       end
 
       local nm = require("notmuch")
       local config = require("notmuch.config")
       local old_setup = config.setup
-      config.setup = function() return false end
-      nm.setup({})
-      config.setup = old_setup
+      local ok, err = pcall(function()
+        config.setup = function() return false end
+        nm.setup({})
+        config.setup = old_setup
 
-      H.eq(0, vim.fn.exists(":Notmuch"))
-      H.eq(0, vim.fn.exists(":NmSearch"))
-      H.eq(0, vim.fn.exists(":Inbox"))
-      H.eq(0, vim.fn.exists(":ComposeMail"))
+        local commands = vim.api.nvim_get_commands({})
+        H.eq(nil, commands.Notmuch)
+        H.eq(nil, commands.NmSearch)
+        H.eq(nil, commands.Inbox)
+        H.eq(nil, commands.ComposeMail)
+      end)
+      config.setup = old_setup
 
       nm.setup({
         notmuch_db_path = vim.fn.getcwd() .. "/tests/tmp/mail",
@@ -100,6 +104,8 @@ return {
         render_html_body = false,
         suppress_deprecation_warning = true,
       })
+
+      if not ok then error(err, 0) end
     end,
   },
 }

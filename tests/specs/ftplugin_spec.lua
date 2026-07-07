@@ -20,6 +20,7 @@ return {
       H.ok(map_rhs("n", "r", buf), "missing buffer-local r")
       H.ok(map_rhs("n", "%", buf), "missing buffer-local %")
       H.ok(map_rhs("n", "C", buf), "missing buffer-local C")
+      H.ok(map_rhs("n", "D", buf), "missing buffer-local D")
       H.ok(map_rhs("n", "q", buf), "missing buffer-local q")
       for _, m in ipairs(vim.api.nvim_get_keymap("n")) do
         H.ok(m.lhs ~= "<CR>", "ftplugin leaked a global <CR> mapping")
@@ -40,6 +41,7 @@ return {
         refresh_hello_buffer = refresh.refresh_hello_buffer,
         sync_maildir = sync.sync_maildir,
         compose = send.compose,
+        select_draft = send.select_draft,
         notify = vim.notify,
       }
       local calls = {}
@@ -53,6 +55,7 @@ return {
         refresh.refresh_hello_buffer = function() calls.refresh = true end
         sync.sync_maildir = function() calls.sync = true end
         send.compose = function() calls.compose = true end
+        send.select_draft = function() calls.drafts = true end
         vim.notify = function(message) calls.notify = message end
 
         local buf = vim.api.nvim_create_buf(true, true)
@@ -78,6 +81,9 @@ return {
         map_rhs("n", "C", buf)()
         H.eq(true, calls.compose)
 
+        map_rhs("n", "D", buf)()
+        H.eq(true, calls.drafts)
+
         vim.api.nvim_feedkeys("q", "xt", false)
         H.wait_until(function()
           return not vim.api.nvim_buf_is_valid(buf)
@@ -89,6 +95,7 @@ return {
       refresh.refresh_hello_buffer = original.refresh_hello_buffer
       sync.sync_maildir = original.sync_maildir
       send.compose = original.compose
+      send.select_draft = original.select_draft
       vim.notify = original.notify
 
       if not ok then error(err, 0) end

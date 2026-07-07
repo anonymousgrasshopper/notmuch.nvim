@@ -13,12 +13,14 @@ local function with_send_env(fn)
   local thread = require("notmuch.thread")
   local old_from = config.options.from
   local old_keymaps = config.options.keymaps
-  local old_tempname = vim.fn.tempname
   local old_call_function = vim.api.nvim_call_function
   local old_sendmail = send.sendmail
   local old_path = vim.env.PATH
   local old_get_current_message_id = thread.get_current_message_id
   local old_logfile = config.options.logfile
+  local old_drafts = vim.deepcopy(config.options.drafts)
+  local old_select = vim.ui.select
+  local old_system = vim.system
   local dir = H.tmpdir()
   local state = { dir = dir, sent = {} }
 
@@ -27,18 +29,25 @@ local function with_send_env(fn)
     sendmail = "<C-g><C-g>",
     attachment_window = "<C-g><C-a>",
   }
-  vim.fn.tempname = function() return dir .. "/draft" end
+  config.options.drafts = {
+    folder = dir .. "/drafts",
+    delete_sent = false,
+    show_sent_drafts = false,
+  }
+  vim.ui.select = function(_, _, on_choice) on_choice(nil) end
 
   local ok, err = pcall(fn, state, send, config, thread)
 
   config.options.from = old_from
   config.options.keymaps = old_keymaps
-  vim.fn.tempname = old_tempname
   vim.api.nvim_call_function = old_call_function
   send.sendmail = old_sendmail
   vim.env.PATH = old_path
   thread.get_current_message_id = old_get_current_message_id
   config.options.logfile = old_logfile
+  config.options.drafts = old_drafts
+  vim.ui.select = old_select
+  vim.system = old_system
   pcall(vim.cmd, "silent! %bwipeout!")
 
   if not ok then error(err, 0) end
@@ -51,7 +60,7 @@ return {
       with_send_env(function(_, send, config)
         send.compose("to+tag@example.com")
         local main_buf = vim.api.nvim_get_current_buf()
-        H.matches(vim.api.nvim_buf_get_name(main_buf), "%-compose%.eml$", "expected compose draft filename")
+        H.matches(vim.api.nvim_buf_get_name(main_buf), "/drafts/compose/compose%-%d%d%d%d%d%d%d%dT%d%d%d%d%d%dZ%-%x%x%x%x%x%x%x%x%.eml$", "expected persistent compose draft filename")
         H.same({
           "From: Sender Name <sender@example.com>",
           "To: to+tag@example.com",
@@ -115,15 +124,17 @@ return {
         map_callback("n", config.options.keymaps.sendmail, main_buf)()
 
         H.eq(1, #state.sent)
-        H.matches(state.sent[1], "%-compose%.eml$")
-        local lines = vim.api.nvim_buf_get_lines(main_buf, 0, -1, false)
-        H.contains(lines, "From: Sender Name <sender@example.com>")
-        H.contains(lines, "To: plain@example.com")
-        H.contains(lines, "MIME-Version: 1.0")
-        H.contains(lines, "Content-Type: text/plain; charset=utf-8")
-        H.contains(lines, "Content-Transfer-Encoding: 8bit")
-        H.contains(lines, "Hello plain body")
-        H.ok(not table.concat(lines, "\n"):find("multipart/mixed", 1, true), "plain message should not be multipart")
+        H.matches(state.sent[1], "%-notmuch%-send%.eml$")
+        local sent_lines = vim.fn.readfile(state.sent[1])
+        H.contains(sent_lines, "From: Sender Name <sender@example.com>")
+        H.contains(sent_lines, "To: plain@example.com")
+        H.contains(sent_lines, "MIME-Version: 1.0")
+        H.contains(sent_lines, "Content-Type: text/plain; charset=utf-8")
+        H.contains(sent_lines, "Content-Transfer-Encoding: 8bit")
+        H.contains(sent_lines, "Hello plain body")
+        H.ok(not table.concat(sent_lines, "\n"):find("multipart/mixed", 1, true), "plain message should not be multipart")
+        local draft_lines = vim.api.nvim_buf_get_lines(main_buf, 0, -1, false)
+        H.ok(not table.concat(draft_lines, "\n"):find("MIME-Version", 1, true), "persistent draft should not be mutated into send artifact")
       end)
     end,
   },
@@ -150,13 +161,15 @@ return {
         map_callback("n", config.options.keymaps.sendmail, main_buf)()
 
         H.eq(1, #state.sent)
-        H.matches(state.sent[1], "%-compose%.eml$")
-        local text = table.concat(vim.api.nvim_buf_get_lines(main_buf, 0, -1, false), "\n")
+        H.matches(state.sent[1], "%-notmuch%-send%.eml$")
+        local text = table.concat(vim.fn.readfile(state.sent[1]), "\n")
         H.contains(text, "From: Sender Name <sender@example.com>")
         H.contains(text, "To: mime@example.com")
         H.contains(text, "Content-Type: multipart/mixed")
         H.contains(text, "Content-Disposition: attachment; filename=\"attachment.txt\"")
         H.contains(text, "Hello MIME body")
+        local metadata = require("notmuch.draft").read_metadata(vim.b[main_buf].notmuch_draft_json_path)
+        H.same({ attachment }, metadata.attachments)
       end)
     end,
   },
@@ -164,32 +177,38 @@ return {
     name = "send.reply gets message id, creates sanitized draft, initializes commands, and reads new drafts",
     run = function()
       with_send_env(function(state, send, config, thread)
-        local bin = state.dir .. "/bin"
-        vim.fn.mkdir(bin, "p")
-        local fake_notmuch = bin .. "/notmuch"
-        H.write_file(fake_notmuch, "#!/bin/sh\nprintf '%s\n' 'From: Sender Name <sender@example.com>' 'To: Reply Target <target@example.com>' 'Subject: Re: Fixture' '' 'quoted reply body'\n")
-        vim.fn.setfperm(fake_notmuch, "rwxr-xr-x")
-        vim.env.PATH = bin .. ":" .. vim.env.PATH
+        vim.system = function(args)
+          H.same({ "notmuch", "reply", "id:msg/with/slash" }, args)
+          return {
+            wait = function()
+              return {
+                code = 0,
+                stdout = table.concat({
+                  "From: Sender Name <sender@example.com>",
+                  "To: Reply Target <target@example.com>",
+                  "Subject: Re: Fixture",
+                  "",
+                  "quoted reply body",
+                }, "\n"),
+                stderr = "",
+              }
+            end,
+          }
+        end
 
         local requested_id
         thread.get_current_message_id = function()
           requested_id = "msg/with/slash"
           return requested_id
         end
-        pcall(vim.fn.delete, "/tmp/reply-msg-with-slash.eml")
 
         send.reply()
         local buf = vim.api.nvim_get_current_buf()
         H.eq("msg/with/slash", requested_id)
-        H.eq("reply-msg-with-slash.eml", vim.api.nvim_buf_get_name(buf):match("([^/]+)$"))
-        H.eq("wipe", vim.bo[buf].bufhidden)
+        H.matches(vim.api.nvim_buf_get_name(buf), "/drafts/replies/" .. vim.fn.sha256("msg/with/slash") .. "/reply%-%d%d%d%d%d%d%d%dT%d%d%d%d%d%dZ%-%x%x%x%x%x%x%x%x%.eml$")
         H.same({}, vim.b[buf].notmuch_attachments)
+        H.ok(vim.b[buf].notmuch_draft_json_path, "missing draft sidecar buffer variable")
         H.contains(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "quoted reply body")
-
-        local cmds = vim.api.nvim_buf_get_commands(buf, {})
-        H.ok(cmds.Attach, "missing Attach command")
-        H.ok(cmds.AttachRemove, "missing AttachRemove command")
-        H.ok(cmds.AttachList, "missing AttachList command")
         H.ok(map_callback("n", config.options.keymaps.sendmail, buf), "missing reply send keymap")
       end)
     end,
@@ -198,21 +217,23 @@ return {
     name = "send.reply reuses existing drafts without duplicating notmuch reply output",
     run = function()
       with_send_env(function(state, send, _, thread)
-        local bin = state.dir .. "/bin"
-        vim.fn.mkdir(bin, "p")
-        local fake_notmuch = bin .. "/notmuch"
-        H.write_file(fake_notmuch, "#!/bin/sh\nprintf '%s\n' 'SHOULD_NOT_APPEAR'\n")
-        vim.fn.setfperm(fake_notmuch, "rwxr-xr-x")
-        vim.env.PATH = bin .. ":" .. vim.env.PATH
+        vim.system = function()
+          error("notmuch reply should not be called when an existing reply draft is selected")
+        end
 
-        local reply_file = "/tmp/reply-existing-id.eml"
-        H.write_file(reply_file, "Existing draft\n")
+        local draft = require("notmuch.draft").create_reply_draft("existing/id", { "Existing draft" })
         thread.get_current_message_id = function() return "existing/id" end
+        vim.ui.select = function(items, opts, on_choice)
+          H.eq("Select reply draft:", opts.prompt)
+          H.eq("new_reply", items[1].action)
+          H.eq("open_reply", items[2].action)
+          on_choice(items[2])
+        end
 
         send.reply()
+        H.eq(draft.eml_path, vim.api.nvim_buf_get_name(0))
         local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
         H.same({ "Existing draft" }, lines)
-        pcall(vim.fn.delete, reply_file)
       end)
     end,
   },
@@ -226,8 +247,20 @@ return {
         end
         vim.api.nvim_call_function = function() return 1 end
 
+        vim.system = function(args)
+          local id = args[3]:sub(4)
+          return {
+            wait = function()
+              return {
+                code = 0,
+                stdout = "From: Sender Name <sender@example.com>\nTo: Recipient <recipient@example.com>\nSubject: Re: " .. id .. "\n\nBody",
+                stderr = "",
+              }
+            end,
+          }
+        end
+
         thread.get_current_message_id = function() return "plain-reply" end
-        pcall(vim.fn.delete, "/tmp/reply-plain-reply.eml")
         send.reply()
         local plain_buf = vim.api.nvim_get_current_buf()
         vim.api.nvim_buf_set_lines(plain_buf, 0, -1, false, {
@@ -238,11 +271,10 @@ return {
           "Plain reply body",
         })
         map_callback("n", config.options.keymaps.sendmail, plain_buf)()
-        H.eq("/tmp/reply-plain-reply.eml", state.sent[#state.sent])
-        H.contains(vim.api.nvim_buf_get_lines(plain_buf, 0, -1, false), "MIME-Version: 1.0")
+        H.matches(state.sent[#state.sent], "%-notmuch%-send%.eml$")
+        H.contains(vim.fn.readfile(state.sent[#state.sent]), "MIME-Version: 1.0")
 
         thread.get_current_message_id = function() return "mime-reply" end
-        pcall(vim.fn.delete, "/tmp/reply-mime-reply.eml")
         send.reply()
         local mime_buf = vim.api.nvim_get_current_buf()
         local attachment = H.write_file(state.dir .. "/reply-attachment.txt", "reply attachment\n")
@@ -253,10 +285,13 @@ return {
           "",
           "MIME reply body",
         })
-        vim.b[mime_buf].notmuch_attachments = { attachment }
+        map_callback("n", config.options.keymaps.attachment_window, mime_buf)()
+        local attach_buf = vim.api.nvim_get_current_buf()
+        vim.api.nvim_buf_set_lines(attach_buf, 0, -1, false, { attachment })
+        vim.api.nvim_set_current_buf(mime_buf)
         map_callback("n", config.options.keymaps.sendmail, mime_buf)()
-        H.eq("/tmp/reply-mime-reply.eml", state.sent[#state.sent])
-        local text = table.concat(vim.api.nvim_buf_get_lines(mime_buf, 0, -1, false), "\n")
+        H.matches(state.sent[#state.sent], "%-notmuch%-send%.eml$")
+        local text = table.concat(vim.fn.readfile(state.sent[#state.sent]), "\n")
         H.contains(text, "Content-Type: multipart/mixed")
         H.contains(text, "Content-Disposition: attachment; filename=\"reply-attachment.txt\"")
       end)

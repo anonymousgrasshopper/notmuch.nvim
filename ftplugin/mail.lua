@@ -1,5 +1,6 @@
 if vim.startswith(vim.fs.basename(vim.api.nvim_buf_get_name(0)), "thread:") then
   local tag = require("notmuch.tag")
+  local parts = require("notmuch.attach.parts")
 
   vim.opt_local.foldmethod = "marker"
   vim.opt_local.foldlevel = 0
@@ -25,18 +26,19 @@ if vim.startswith(vim.fs.basename(vim.api.nvim_buf_get_name(0)), "thread:") then
     nargs = "+",
     force = true,
   })
+
   vim.api.nvim_buf_create_user_command(0, "FollowPatch", function()
     local line = vim.api.nvim_win_get_cursor(0)[1]
-    require("notmuch.attach").follow_github_patch(line)
+    parts.follow_github_patch(line)
   end, {
     force = true,
   })
 
-  vim.keymap.set("n", "U", require("notmuch.attach").get_urls_from_cursor_msg, { buffer = true })
+  vim.keymap.set("n", "U", parts.get_urls_from_cursor_msg, { buffer = true })
   vim.keymap.set("n", "<Tab>", "zj", { buffer = true, silent = true })
   vim.keymap.set("n", "<S-Tab>", "zk", { buffer = true, silent = true })
   vim.keymap.set("n", "<Enter>", "za", { buffer = true, silent = true })
-  vim.keymap.set("n", "a", require("notmuch.attach").get_attachments_from_cursor_msg, { buffer = true })
+  vim.keymap.set("n", "a", parts.get_attachments_from_cursor_msg, { buffer = true })
   vim.keymap.set("n", "r", require("notmuch.refresh").refresh_thread_buffer, { buffer = true })
   vim.keymap.set("n", "C", require("notmuch.send").compose, { buffer = true })
   vim.keymap.set("n", "R", require("notmuch.send").reply, { buffer = true })

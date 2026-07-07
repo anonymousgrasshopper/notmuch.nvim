@@ -48,9 +48,9 @@ end
 
 return {
   {
-    name = "attach.get_attachments_from_cursor_msg creates formatted attachment list buffer",
+    name = "attach.parts.get_attachments_from_cursor_msg creates formatted attachment list buffer",
     run = function()
-      local attach = require("notmuch.attach")
+      local attach = require("notmuch.attach.parts")
       local old_system = vim.fn.system
       local command
       local json = {
@@ -107,9 +107,9 @@ return {
     end,
   },
   {
-    name = "attach.get_attachments_from_cursor_msg returns safely without id or duplicate buffer",
+    name = "attach.parts.get_attachments_from_cursor_msg returns safely without id or duplicate buffer",
     run = function()
-      local attach = require("notmuch.attach")
+      local attach = require("notmuch.attach.parts")
       local start_buf = vim.api.nvim_get_current_buf()
 
       with_current_message_id(nil, function()
@@ -133,9 +133,9 @@ return {
     end,
   },
   {
-    name = "attach.save_attachment_part maps cursor lines, sanitizes filenames, and saves selected part",
+    name = "attach.parts.save_attachment_part maps cursor lines, sanitizes filenames, and saves selected part",
     run = function()
-      local attach = require("notmuch.attach")
+      local attach = require("notmuch.attach.parts")
       local dir = H.tmpdir()
       local parts = {
         { id = 2, content_type = "application/pdf", filename = "unsafe/name.pdf", disposition = "attachment", size = 1 },
@@ -176,9 +176,9 @@ return {
     end,
   },
   {
-    name = "attach.save_attachment_part prompt handles directories, cancellations, missing dirs, and overwrites",
+    name = "attach.parts.save_attachment_part prompt handles directories, cancellations, missing dirs, and overwrites",
     run = function()
-      local attach = require("notmuch.attach")
+      local attach = require("notmuch.attach.parts")
       local dir = H.tmpdir()
       local empty_dir = H.tmpdir()
       local existing = H.write_file(dir .. "/doc.txt", "old")
@@ -226,9 +226,9 @@ return {
     end,
   },
   {
-    name = "attach.save_attachment_part reports non-writable prompt directories",
+    name = "attach.parts.save_attachment_part reports non-writable prompt directories",
     run = function()
-      local attach = require("notmuch.attach")
+      local attach = require("notmuch.attach.parts")
       local dir = H.tmpdir()
       local part = { id = 8, content_type = "text/plain", filename = "blocked.txt", disposition = "attachment", size = 1 }
       local buf = attachment_buf({ part }, "id:blocked-msg")
@@ -257,9 +257,9 @@ return {
     end,
   },
   {
-    name = "attach.save/open/view handlers handle failed saves and configured callbacks",
+    name = "attach.parts.save/open/view handlers handle failed saves and configured callbacks",
     run = function()
-      local attach = require("notmuch.attach")
+      local attach = require("notmuch.attach.parts")
       local config = require("notmuch.config")
       local part = { id = 9, content_type = "text/plain", filename = "view.txt", disposition = "attachment", size = 1 }
       local buf = attachment_buf({ part }, "id:handler-msg")

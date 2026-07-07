@@ -291,7 +291,7 @@ return {
   {
     name = "mail ftplugin thread actions open attachments, refresh, compose, reply, tag messages, and close",
     run = function()
-      local attach = require("notmuch.attach")
+      local attach = require("notmuch.attach.parts")
       local refresh = require("notmuch.refresh")
       local send = require("notmuch.send")
       local tag = require("notmuch.tag")
@@ -371,7 +371,7 @@ return {
   {
     name = "notmuch-attach ftplugin save mapping prompts and q closes buffer",
     run = function()
-      local attach = require("notmuch.attach")
+      local attach = require("notmuch.attach.parts")
       local old_save = attach.save_attachment_part
       local called
       local ok, err = pcall(function()

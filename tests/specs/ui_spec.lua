@@ -158,7 +158,7 @@ return {
     name = "e2e attachment workflow opens, saves, views, and opens fixture attachments",
     run = function()
       local nm = require("notmuch")
-      local attach = require("notmuch.attach")
+      local attach = require("notmuch.attach.parts")
       local config = require("notmuch.config")
       local old_open, old_view = config.options.open_handler, config.options.view_handler
       local opened, viewed

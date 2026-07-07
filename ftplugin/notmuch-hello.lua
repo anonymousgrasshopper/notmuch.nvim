@@ -8,5 +8,5 @@ vim.keymap.set("n", "c", function() nm.count_hello_line() end, { buffer = true }
 vim.keymap.set("n", "q", "<Cmd>bwipeout<CR>", { buffer = true })
 vim.keymap.set("n", "r", r.refresh_hello_buffer, { buffer = true })
 vim.keymap.set("n", "C", require("notmuch.send").compose, { buffer = true })
-vim.keymap.set("n", "D", require("notmuch.send").select_compose_draft, { buffer = true })
+vim.keymap.set("n", "D", require("notmuch.send").select_draft, { buffer = true })
 vim.keymap.set("n", "%", s.sync_maildir, { buffer = true })

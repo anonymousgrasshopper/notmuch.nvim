@@ -61,7 +61,7 @@ nm.setup = function(opts)
     complete = require("notmuch.completion").comp_address
   })
   vim.api.nvim_create_user_command("NotmuchDrafts", function()
-    require('notmuch.send').select_compose_draft()
+    require('notmuch.send').select_draft()
   end, {
     desc = "Select and open drafts",
   })

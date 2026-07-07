@@ -484,6 +484,58 @@ function D.list_reply_drafts(message_id)
   return drafts
 end
 
+function D.list_all_reply_drafts()
+  -- Check and ensure replies/ dir exists
+  local dir = D.replies_dir()
+  local stat = vim.uv.fs_stat(dir)
+  if not stat then
+    return {}
+  end
+
+  if stat.type ~= 'directory' then
+    vim.notify('Reply drafts path is not a directory: ' .. dir, vim.log.levels.ERROR)
+    return nil
+  end
+
+  local paths = vim.fn.globpath(dir, '*/*.eml', false, true)
+  local drafts = {}
+
+  for _, eml_path in ipairs(paths) do
+    local draft = D.load_reply_draft(eml_path)
+    if draft and draft.kind == 'reply' and (config.options.drafts.show_sent_drafts or is_unsent(draft)) then
+      table.insert(drafts, draft)
+    end
+  end
+
+  table.sort(drafts, function(a, b)
+    local a_time = a.metadata.updated_at or a.metadata.created_at or ''
+    local b_time = b.metadata.updated_at or b.metadata.created_at or ''
+    return a_time > b_time
+  end)
+
+  return drafts
+end
+
+function D.list_all_drafts()
+  local drafts = {}
+
+  for _, draft in ipairs(D.list_compose_drafts() or {}) do
+    table.insert(drafts, draft)
+  end
+
+  for _, draft in ipairs(D.list_all_reply_drafts() or {}) do
+    table.insert(drafts, draft)
+  end
+
+  table.sort(drafts, function(a, b)
+    local a_time = a.metadata.updated_at or a.metadata.created_at or ''
+    local b_time = b.metadata.updated_at or b.metadata.created_at or ''
+    return a_time > b_time
+  end)
+
+  return drafts
+end
+
 function D.mark_sent(json_path)
   local metadata = D.read_metadata(json_path)
   if not metadata then

@@ -411,6 +411,22 @@ local format_reply_draft_item = function(item)
   return string.format('[%s] %s - %s %s', kind, updated, subject, attach)
 end
 
+local format_draft_item = function(item)
+  if item.action == 'new_compose' then
+    return '➕ Compose new draft'
+  end
+
+  local draft = item.draft
+  local kind = draft.kind or 'draft'
+  local timestamp = draft.metadata.updated_at or draft.metadata.created_at
+  local updated = format_draft_timestamp(timestamp)
+  local subject = draft.subject or '[No subject]'
+  local attachments = draft.metadata.attachments or {}
+  local attach = #attachments > 0 and ('(📎' .. #attachments .. ')') or ''
+
+  return string.format('[%s] %s - %s %s', kind, updated, subject, attach)
+end
+
 local select_reply_draft = function(message_id, drafts)
   local items = { new_reply_draft_item }
 
@@ -521,6 +537,42 @@ s.select_compose_draft = function()
 
     if choice.action == 'open_compose' then
       s.open_compose_draft(choice.draft.eml_path)
+    end
+  end)
+end
+
+s.select_draft = function()
+  local drafts = require('notmuch.draft').list_all_drafts()
+  if not drafts then
+    return
+  end
+
+  local items = {
+    new_compose_draft_item,
+  }
+
+  for _, draft in ipairs(drafts) do
+    table.insert(items, {
+      action = 'open_draft',
+      draft = draft,
+    })
+  end
+
+  vim.ui.select(items, {
+    prompt = 'Select draft:',
+    format_item = format_draft_item,
+  }, function(choice)
+    if not choice then
+      return
+    end
+
+    if choice.action == 'new_compose' then
+      s.compose()
+      return
+    end
+
+    if choice.action == 'open_draft' then
+      open_draft_buffer(choice.draft)
     end
   end)
 end

@@ -221,8 +221,9 @@ nm.show_thread = function(s)
   v.nvim_buf_set_lines(buf, 0, 0, false, { hint_text, "" })
 
   -- Place cursor at head of buffer and prepare display and disable modification
-  v.nvim_buf_set_lines(buf, -2, -1, true, {})
-  v.nvim_win_set_cursor(0, { 1, 0})
+  v.nvim_buf_set_lines(buf, -2, -1, true, {}) -- remove last line from buffer
+  v.nvim_win_set_cursor(0, { 4, 0 }) -- jump to first thread
+	-- set buffer options
   vim.bo.filetype="mail"
   vim.bo.modifiable = false
 

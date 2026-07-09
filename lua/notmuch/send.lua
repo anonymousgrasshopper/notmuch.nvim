@@ -171,7 +171,7 @@ end
 --
 -- @param filename string: path to the email message you would like to send
 --
--- @return string: The log message provided by `msmtp`
+-- @return boolean: whether the mail was sent or not
 --
 -- @usage
 --   require('notmuch.send').sendmail('/tmp/my_new_email.eml')

@@ -6,11 +6,11 @@ local a = {}
 -- asynchronously run the `notmuch` search query in the background so it does
 -- not block `nvim`s event loop and allow seamless UX while results flow in
 --
--- @param search string: search term to query. see `notmuch-search-terms(7)`
--- @param buf int: refers to the buffer id to write the output to
--- @param on_complete func: callback function to execute once process completes
+---@param search string: search term to query. see `notmuch-search-terms(7)`
+---@param buf int: refers to the buffer id to write the output to
+---@param on_complete func: callback function to execute once process completes
 --
--- @usage
+---@usage
 -- -- Refer to `init.lua` for example invocation
 -- require('notmuch.async').run_notmuch_search('tag:inbox', 0, function()
 --   print('Notmuch search process completed.')

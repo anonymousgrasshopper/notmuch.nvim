@@ -12,9 +12,9 @@ local config = require('notmuch.config')
 -- confirm the action of sending an email. This is applicable for sending newly
 -- composed mails or replies by passing the mail file path.
 --
--- @param filename string: path to the email message you would like to send
+---@param filename string: path to the email message you would like to send
 --
--- @usage
+---@usage
 --   -- See reply() or compose()
 --   vim.keymap.set('n', '<C-c><C-c>', function()
 --     confirm_sendmail(reply_filename)
@@ -169,11 +169,11 @@ end
 -- `msmtp` with logging capability to that file. Otherwise, it logs to
 -- temporary file.
 --
--- @param filename string: path to the email message you would like to send
+---@param filename string: path to the email message you would like to send
 --
--- @return string: The log message provided by `msmtp`
+---@return string: The log message provided by `msmtp`
 --
--- @usage
+---@usage
 --   require('notmuch.send').sendmail('/tmp/my_new_email.eml')
 s.sendmail = function(filename)
   if not vim.loop.fs_stat(filename) then
@@ -237,7 +237,7 @@ end
 -- draft file will be stored in `tmp/` and a keymap (default `<C-c><C-c>`) to
 -- allow sending directly from within nvim
 --
--- @usage
+---@usage
 --   -- Typically you would just press `R` on a message in a thread
 --   require('notmuch.send').reply()
 s.reply = function()
@@ -314,9 +314,9 @@ end
 -- message headers and body. The mail content is stored in `/tmp/` so the user
 -- can come back to it later if needed.
 --
--- @param to string: recipient address (optionaal argument)
+---@param to string: recipient address (optionaal argument)
 --
--- @usage
+---@usage
 --   -- Typically you can run this with `:ComposeMail` or pressing `C`
 --   require('notmuch.send').compose()
 s.compose = function(to)

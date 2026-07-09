@@ -90,10 +90,10 @@ end
 -- This function takes in a string and splits it into a table of strings based
 -- on some delimiter given by the caller, and returns the result table.
 --
--- @param s string: input string
--- @param delim string: delimiter string (can be char or more complex)
+---@param s string: input string
+---@param delim string: delimiter string (can be char or more complex)
 --
--- @returns out table: table of strings as split by the function given delim
+---@returns out table: table of strings as split by the function given delim
 u.split = function(s, delim)
   local out = {}
   local i = 1
@@ -109,10 +109,10 @@ end
 -- This function takes in a string and splits it into a table of strings based
 -- on some length given by the caller, and returns the result table.
 --
--- @param s string: input string
--- @param length integer: length integer
+---@param s string: input string
+---@param length integer: length integer
 --
--- @returns out table: table of strings as split by the function given length
+---@returns out table: table of strings as split by the function given length
 u.split_length = function(s, length)
   local out = {}
 
@@ -130,11 +130,11 @@ end
 -- function will prepend the header with special characters to signify its depth
 -- to the user in a user friendly way.
 --
--- @param buf int: id of the buffer containing the message header in question
--- @param lineno int: line number of the header which the user wants to indent
--- @param depth int: depth of the message in the reply chain of the thread
+---@param buf int: id of the buffer containing the message header in question
+---@param lineno int: line number of the header which the user wants to indent
+---@param depth int: depth of the message in the reply chain of the thread
 --
--- @usage
+---@usage
 -- -- See u.process_msgs_in_thread() for invocation example
 -- indent_depth(buf, lineno, msg.depth)
 local indent_depth = function(buf, lineno, depth)
@@ -152,7 +152,7 @@ end
 -- are modified for better readability and navigation through logical folds in
 -- Neovim.
 --
--- @param buf: The buffer id where the message content is located.
+---@param buf: The buffer id where the message content is located.
 --
 -- Behavior:
 -- - Identifies lines starting with "message{", extracting metadata.
@@ -229,9 +229,9 @@ end
 -- iteratively scanning each line backwards for the `id:` field. If used
 -- incorrectly or no id is found, a helpful message will indicate the same
 --
--- @returns id int: id of the email messageo
+---@returns id int: id of the email messageo
 --
--- @usage
+---@usage
 -- local id = require('notmuch.util').find_cursor_msg_id()
 -- -- Do something with the mail id (e.g. reply, tag, get attachments)
 u.find_cursor_msg_id = function()

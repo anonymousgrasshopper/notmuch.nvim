@@ -259,6 +259,12 @@ option will be listed with its default value.
   Default value:
     `mbsync -a`
 
+*send.terminal*
+  Wether to open a terminal when using msmtp to send a mail. Useful if you need
+  to input a password for instance.
+
+  Defaults to `true`
+
 *sync.sync_mode*
   Controls how the mail synchronization is displayed and managed. This option
   accepts the following values:

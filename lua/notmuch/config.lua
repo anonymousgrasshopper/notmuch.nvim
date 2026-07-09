@@ -47,7 +47,6 @@ C.defaults = function()
     notmuch_db_path = db_path,
     from = name .. ' <' .. email .. '>',
     maildir_sync_cmd = 'mbsync -a',
-    open_cmd = 'xdg-open',
     logfile = nil,
     sync = {
       sync_mode = "buffer",  -- "background" | "buffer" | "terminal"

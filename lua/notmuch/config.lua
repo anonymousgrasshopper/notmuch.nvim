@@ -49,6 +49,9 @@ C.defaults = function()
     maildir_sync_cmd = 'mbsync -a',
     open_cmd = 'xdg-open',
     logfile = nil,
+    send = {
+      terminal = true,
+    },
     sync = {
       sync_mode = "buffer",  -- "background" | "buffer" | "terminal"
       --   background: Silent sync in background, notifications only

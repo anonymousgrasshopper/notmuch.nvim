@@ -163,7 +163,7 @@ end
 ---@usage
 --   require('notmuch.send').sendmail('/tmp/my_new_email.eml')
 s.sendmail = function(filename)
-  if not vim.loop.fs_stat(filename) then
+  if not vim.uv.fs_stat(filename) then
     vim.notify('❌ Email file not found: ' .. filename, vim.log.levels.ERROR)
     return false
   end

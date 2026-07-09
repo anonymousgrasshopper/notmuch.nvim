@@ -30,7 +30,7 @@ the familiar Vim interface and motions.
 - 📧 **Email Browsing**: Navigate emails with Vim-like movements.
 - 🔍 **Search Your Email**: Leverage `notmuch` to search your email interactively.
 - 🔗 **Thread Viewing**: Messages are loaded with folding and threading intact.
-- 📎 **Attachment Management**: View, open and save attachments easily.
+- 📎 **Attachment Management**: View/open/save received attachments, and manage outgoing draft attachments with both commands and an editable scratch window.
 - 🌐 **Inline HTML Rendering**: Render HTML email bodies as text via `w3m`.
 - ⬇️ **Offline Mail Sync**: Supports `mbsync` for efficient sync processes, with buffer, background, and interactive terminal modes.
 - 🔓 **Async Search**: Large mailboxes with thousands of email? No problem.
@@ -123,6 +123,11 @@ Here are the core commands within Notmuch.nvim:
   :Inbox work@example.com
   ```
 
+- **`:ComposeMail [address...]`**: Opens a persistent compose draft. Drafts are
+  saved under `drafts.folder` and can be reopened later.
+
+- **`:NotmuchDrafts`**: Opens a global draft picker for compose and reply drafts.
+
 ## Configuration Options
 
 You can configure several global options to tailor the plugin's behavior:
@@ -138,6 +143,10 @@ You can configure several global options to tailor the plugin's behavior:
 | `view_handler`     | Callback function for converting attachments to text to view in floating window | See `default_view_handler()`[2] |
 | `render_html_body` | Render HTML email bodies inline using `w3m` (requires `w3m` installed)          | `false`                         |
 | `thread_view_mode` | Thread view mode: `"threaded"`, `"newest-first"`, or `"oldest-first"`        | `"threaded"`                   |
+| `drafts.folder` | Directory used for persistent compose/reply draft `.eml` files and JSON metadata | `stdpath("data")/notmuch.nvim/drafts` |
+| `drafts.delete_sent` | Delete the persistent draft after a successful send instead of marking it sent | `false` |
+| `drafts.show_sent_drafts` | Include sent drafts in draft pickers | `false` |
+| `drafts.auto_open_attachment_window` | Automatically open the draft attachment scratch window when a draft opens | `false` |
 | `suppress_deprecation_warning` | Suppress the warning shown when using deprecated notmuch API (< 0.32) | `false`                         |
 
 [1]: https://github.com/yousefakbar/notmuch.nvim/blob/main/lua/notmuch/config.lua
@@ -157,6 +166,12 @@ Example configuration in plugin manager (lazy.nvim):
         keymaps = {
             sendmail = "<C-g><C-g>",
         },
+        drafts = {
+            folder = vim.fn.stdpath("data") .. "/notmuch.nvim/drafts",
+            delete_sent = false,
+            show_sent_drafts = false,
+            auto_open_attachment_window = false,
+        },
         render_html_body = true, -- Render HTML emails inline (requires w3m)
         queries = {
             { name = "📤 Sent today",    query = "tag:sent and date:today" },
@@ -168,9 +183,31 @@ Example configuration in plugin manager (lazy.nvim):
 },
 ```
 
+### Drafts and Outgoing Attachments
+
+Compose and reply buffers are backed by persistent drafts. Each draft stores the
+editable message in an `.eml` file and metadata, including outgoing attachment
+paths, in a JSON sidecar. The JSON sidecar is the persistent source of truth for
+draft attachments, mirrored while the draft is open in `vim.b.notmuch_attachments`.
+
+Outgoing attachments can be managed in either of two synchronized ways:
+
+- Edit the attachment scratch window, opened with the configured
+  `keymaps.attachment_window` mapping or `:AttachOpen`.
+- Use buffer-local commands in compose/reply draft buffers:
+  - `:Attach {path}` adds a validated attachment path.
+  - `:AttachRemove {path}` removes an attachment, with completion from the
+    current attachment list.
+  - `:AttachList` prints the current attachment list.
+  - `:AttachOpen` opens the editable attachment scratch window.
+
+The scratch window and commands update the same draft attachment state. Set
+`drafts.auto_open_attachment_window = true` if you want the scratch window to
+open automatically whenever a draft opens.
+
 ### Customizing Attachment Handlers
 
-The plugin provides two handlers for working with attachments:
+The plugin provides two handlers for working with received-message attachments:
 
 **Open Handler**: Opens attachments externally with your system's default
 application. The default handler automatically detects your OS and uses `open`

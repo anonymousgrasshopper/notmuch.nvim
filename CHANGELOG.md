@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `"threaded"` preserves the original notmuch thread tree structure with reply nesting and indentation
   - `"newest-first"` flattens messages and sorts them chronologically newest to oldest
   - `"oldest-first"` flattens messages and sorts them chronologically oldest to newest
+- Persistent compose and reply draft storage under configurable `drafts.folder`
+  - Draft content is stored as `.eml` files with JSON sidecars for metadata and outgoing attachment paths
+  - Sent drafts are hidden from pickers by default and can be deleted after successful send with `drafts.delete_sent`
+- `:NotmuchDrafts` command and dashboard `D` mapping for a global compose/reply draft picker
+- Buffer-local draft attachment commands for both compose and reply drafts:
+  - `:Attach {path}`
+  - `:AttachRemove {path}`
+  - `:AttachList`
+  - `:AttachOpen`
+- New `drafts.auto_open_attachment_window` option to control whether draft attachment scratch windows open automatically
 
 ### Changed
 
@@ -33,6 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrated ftplugin files from Vimscript to Lua (`mail`, `notmuch-attach`, `notmuch-hello`, and `notmuch-threads`)
 - Deleting threads from the thread list now removes them from the buffer immediately
 - Generated test state is now ignored by git
+- Compose/reply sending now builds temporary outbound send artifacts so persistent draft `.eml` files are not mutated into MIME send output
+- Outgoing draft attachment handling now uses one shared state model backed by the draft JSON sidecar and mirrored in `vim.b.notmuch_attachments`
+- Attachment-related Lua modules are now namespaced under `notmuch.attach`:
+  - `notmuch.attach` is the outgoing draft attachment facade
+  - `notmuch.attach.commands` owns draft attachment commands
+  - `notmuch.attach.state` owns canonical draft attachment state
+  - `notmuch.attach.scratch` owns the draft attachment scratch window
+  - `notmuch.attach.parts` owns received-message MIME part listing/opening/saving
 
 ### Fixed
 
@@ -44,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Message tag operations now return before opening a writable database when no current message is available
 - Thread tag operations now skip non-thread lines safely and parse thread IDs more robustly
 - Empty or missing message headers now use fallback header values instead of rendering blank values
+- Draft attachment scratch buffers and attachment commands now stay synchronized through shared sidecar-backed state
 
 ## [0.3.0] - 2026-02-11
 

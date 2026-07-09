@@ -237,6 +237,33 @@ Notmuch.nvim plugin and the local mail system to search and browse.
 		     Provides autocomplete for email addresses from the notmuch
 		     database. Essentially implemented by the |NmSearch| command.
 
+                                                    *:ComposeMail*
+:ComposeMail [addr]  Opens a persistent compose draft. Optional address
+                     arguments populate the `To:` header. Draft content is
+                     stored as an `.eml` file under |drafts.folder| and can be
+                     reopened later through |:NotmuchDrafts|.
+
+                                                    *:NotmuchDrafts*
+:NotmuchDrafts       Opens a global picker containing compose drafts and reply
+                     drafts. Sent drafts are hidden unless
+                     |drafts.show_sent_drafts| is enabled.
+
+Draft buffers also define buffer-local attachment commands:
+
+                                                    *:Attach*
+:Attach {path}       Add a validated file path to the current compose/reply
+                     draft's outgoing attachment list.
+
+                                                    *:AttachRemove*
+:AttachRemove {path} Remove an outgoing attachment from the current draft.
+                     Completion is provided from the current attachment list.
+
+                                                    *:AttachList*
+:AttachList          Print the current draft's outgoing attachment list.
+
+                                                    *:AttachOpen*
+:AttachOpen          Open the editable draft attachment scratch window.
+
 ------------------------------------------------------------------------------
 OPTIONS                                                       *notmuch-options*
 
@@ -258,6 +285,39 @@ option will be listed with its default value.
 
   Default value:
     `mbsync -a`
+
+*drafts.folder*
+  Directory used for persistent compose and reply drafts. Draft mail content is
+  stored as `.eml` files and draft metadata is stored in a JSON sidecar next to
+  each `.eml` file. The sidecar contains persistent outgoing attachment paths
+  and timestamps.
+
+  Default value:
+    `stdpath("data")/notmuch.nvim/drafts`
+
+*drafts.delete_sent*
+  Controls whether a draft is deleted after a successful send. When disabled,
+  the draft sidecar is marked with `sent_at` instead.
+
+  Default value:
+    `false`
+
+*drafts.show_sent_drafts*
+  Controls whether sent drafts are shown in |:NotmuchDrafts| and reply draft
+  pickers.
+
+  Default value:
+    `false`
+
+*drafts.auto_open_attachment_window*
+  Controls whether the editable draft attachment scratch window opens
+  automatically when a compose or reply draft opens. Attachment commands are
+  available regardless of this setting, and the scratch window can always be
+  opened manually with |:AttachOpen| or the configured
+  `keymaps.attachment_window` mapping.
+
+  Default value:
+    `false`
 
 *sync.sync_mode*
   Controls how the mail synchronization is displayed and managed. This option
@@ -479,6 +539,14 @@ related to buffers:
   - *Attachment listing buffer*:
     Provides a listing of the attachments within a message, available for
     saving, viewing within nvim, or opening externally.
+  - *Draft buffer*:
+    Persistent compose/reply `.eml` buffer. Defines |:Attach|,
+    |:AttachRemove|, |:AttachList|, and |:AttachOpen| for outgoing draft
+    attachments.
+  - *Draft attachment scratch buffer*:
+    Editable nofile buffer containing one outgoing attachment path per line.
+    It is synchronized with the draft JSON sidecar and
+    `vim.b.notmuch_attachments`.
 
 - *Buffer Navigation* ~
   - Pressing <CR> on a saved query in the Tags Buffer runs that query.
@@ -545,6 +613,22 @@ interact with your email directly from the editor.
     `{line_number → query_string}` used internally by `open_hello_line()` to
     dispatch <CR> on Saved/Pinned entries to the correct notmuch search term.
     Populated by `show_all_tags()` and keyed by 1-based buffer line number.
+
+  *vim.b.notmuch_draft_json_path*
+    Set on compose/reply draft buffers. Path to the JSON sidecar used for
+    persistent draft metadata and outgoing attachment state.
+
+  *vim.b.notmuch_attachments*
+    Set on compose/reply draft buffers. Runtime mirror of the outgoing
+    attachment list stored in the draft JSON sidecar.
+
+  *vim.b.notmuch_attachment_scratch_buf*
+    Set on draft buffers when an attachment scratch buffer has been opened.
+    Contains the linked scratch buffer number.
+
+  *vim.b.notmuch_parent_draft_buf*
+    Set on draft attachment scratch buffers. Contains the parent draft buffer
+    number whose attachment state the scratch buffer edits.
 
   *vim.b.notmuch_status*
     Pre-formatted string suitable for statusline display. Format:
@@ -671,8 +755,8 @@ plugin's project codebase.
 
   - **init.lua**:
     - The main entry point for Lua functionality in the plugin.
-    - Defines global configurations like `NotmuchDBPath`,
-      `NotmuchMaildirSyncCmd`, and `NotmuchOpenCmd`.
+    - Defines setup entry points, user commands, dashboard/search/thread buffer
+      helpers, and public plugin APIs.
     - Implements core commands such as |:NmSearch| and |:Notmuch|, and
       provides functions for refreshing buffers and displaying tags or
       threads.
@@ -704,11 +788,29 @@ plugin's project codebase.
       messages or entire threads.
     - Directly interacts with the Notmuch database via LuaJIT bindings.
 
-  - **attach.lua**:
-    - Manages email attachments, providing functions to:
-      - List attachments in a thread.
-      - Save attachments to a directory.
-      - Open attachments using external programs.
+  - **attach/init.lua**:
+    - Public facade for outgoing draft attachment management.
+    - Exposes helpers for reading/updating attachment state, opening the
+      scratch window, registering draft attachment commands, and preparing
+      attachments before send.
+
+  - **attach/state.lua**:
+    - Canonical runtime state layer for outgoing draft attachments.
+    - Mirrors the draft JSON sidecar in `vim.b.notmuch_attachments`.
+    - Normalizes, deduplicates, validates, adds, removes, and persists
+      outgoing attachment paths.
+
+  - **attach/scratch.lua**:
+    - Owns the editable draft attachment scratch buffer.
+    - Links draft buffers and scratch buffers and synchronizes scratch lines
+      back to sidecar-backed attachment state.
+
+  - **attach/commands.lua**:
+    - Defines buffer-local draft attachment commands: |:Attach|,
+      |:AttachRemove|, |:AttachList|, and |:AttachOpen|.
+
+  - **attach/parts.lua**:
+    - Handles received-message MIME part listing/opening/viewing/saving.
     - Supports extracting URLs from messages and following GitHub patch links.
 
   - **handlers.lua**:
@@ -723,7 +825,11 @@ plugin's project codebase.
       configuration options.
 
   - **send.lua**:
-    - Implements the methods for composing and replying to emails.
+    - Implements composing, replying, persistent draft opening, and sending.
+    - Creates compose/reply drafts under |drafts.folder| and routes outgoing
+      attachment handling through `notmuch.attach`.
+    - Builds a temporary outbound send artifact so persistent draft `.eml`
+      files are not mutated during send.
     - Uses `msmtp` as a standard mailsend command
       - TODO: Will make this command configurable by the user.
 
@@ -752,8 +858,8 @@ plugin's project codebase.
 
   - **sync.lua**:
     - Handles synchronization of the Maildir with the remote server.
-    - Executes the sync command defined in `NotmuchMaildirSyncCmd` followed 
-      by refreshing the Notmuch database with `notmuch new`.
+    - Executes the sync command defined by `maildir_sync_cmd` followed by
+      refreshing the Notmuch database with `notmuch new`.
     - Operates asynchronously, ensuring a non-blocking experience.
     - Supports configurable sync modes via the `sync_mode` option.
 
@@ -782,8 +888,8 @@ plugin's project codebase.
   Developers looking to contribute or customize the plugin can start with:
     - `init.lua` for understanding the plugin's entry point and default 
       behaviors.
-    - `tag.lua` or `attach.lua` for adding or modifying functionality related 
-      to tags or attachments.
+    - `tag.lua` for tag behavior and the `attach/` namespace for received
+      message parts and outgoing draft attachment behavior.
     - `cnotmuch.lua` for extending the interface with the Notmuch C library.
 
 For a deeper dive into asynchronous operations, refer to the |notmuch-async| 

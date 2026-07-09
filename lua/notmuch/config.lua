@@ -60,7 +60,11 @@ C.defaults = function()
     render_html_body = false, -- True means prioritize displaying rendered HTML
     thread_view_mode = "threaded", -- "threaded" | "newest-first" | "oldest-first" - Thread view display mode
     open_handler = function(attachment)
-      require('notmuch.handlers').default_open_handler(attachment)
+			if vim.fn.has("nvim-0.10") == 1 then
+				vim.ui.open(attachment.path)
+			else
+				require('notmuch.handlers').default_open_handler(attachment)
+			end
     end,
     view_handler = function(attachment)
       return require('notmuch.handlers').default_view_handler(attachment)

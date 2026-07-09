@@ -8,7 +8,7 @@ local nm = require('notmuch')
 -- threads) by deleting the original buffer and re-invokes the `search_terms()`
 -- function.
 --
--- @usage
+---@usage
 -- -- Normally invoked by pressing `r` in the search results buffer
 -- lua require('notmuch.refresh').refresh_search_buffer()
 r.refresh_search_buffer = function()
@@ -26,7 +26,7 @@ end
 -- messages inside by deleting the original buffer and re-invokes the
 -- `show_thread()` function again to refresh the thread view.
 --
--- @usage
+---@usage
 -- -- Normally invoked by pressing `r` in the thread view buffer
 -- lua require('notmuch.refresh').refresh_thread_buffer()
 r.refresh_thread_buffer = function()
@@ -42,7 +42,7 @@ end
 -- `show_all_tags()` function again. This is useful when you know changes have
 -- been made to the buffer contents and want to reflect it accordingly
 --
--- @usage
+---@usage
 -- -- Normally invoked by pressing `r` in the Tags buffer
 -- lua require('notmuch.refresh').refresh_hello_buffer()
 r.refresh_hello_buffer = function()

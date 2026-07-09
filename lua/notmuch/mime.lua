@@ -66,9 +66,9 @@ end
 -- (per RFC 5322), and all subsequent lines are treated as message body.
 -- Supports RFC 5322 header continuation (lines starting with whitespace).
 --
--- @param lines string: input string
+---@param lines string: input string
 --
--- @returns out table: table of key and values
+---@return out table: table of key and values
 m.get_msg_attributes = function(lines)
   local attributes = {}
   local msg = {}
@@ -145,9 +145,9 @@ m.example_mime = {
 --
 -- This function gets the mime type of a given file
 --
--- @param path string: input string
+---@param path string: input string
 --
--- @returns out string: string of mime type of file given
+---@return out string: string of mime type of file given
 m.get_mime_type = function(path)
   local output = vim.fn.system({'file', '--brief', '--mime-type', path})
   return vim.fn.trim(output)
@@ -157,9 +157,9 @@ end
 --
 -- This function generates a pseudo random character string of given lenth
 --
--- @param length int: input int
+---@param length int: input int
 --
--- @returns out string: string of pseudo random characters
+---@return out string: string of pseudo random characters
 m.get_boundary = function(length)
   if length > 0 then
     return m.get_boundary(length - 1) .. string.char(math.random(65, 65 + 25))
@@ -173,9 +173,9 @@ end
 --
 -- This function returns a mime compatible message with parameters given by the mime_table
 --
--- @param mime_table table: input table
+---@param mime_table table: input table
 --
--- @returns out table: list of string
+---@return out table: list of string
 m.make_mime_msg = function(mime_table)
   local mime = {}
   if mime_table.mime then

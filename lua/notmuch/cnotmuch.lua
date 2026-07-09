@@ -182,8 +182,8 @@ local has_new_api = false
 
 -- Opens a Notmuch database. Entry point into the api.
 --
--- @path: Directory where the Notmuch database is stored.
--- @mode: Read/write mode. Either 0 for read or 1 for read/write.
+---@path: Directory where the Notmuch database is stored.
+---@mode: Read/write mode. Either 0 for read or 1 for read/write.
 local function open_database(path, mode)
   local db = ffi.new('notmuch_database_t*[1]')
   local res
@@ -207,8 +207,8 @@ end
 
 -- Creates a query object given a search string.
 --
--- @query_string: String given by user to search the database.
--- @db: User's Notmuch database object
+---@query_string: String given by user to search the database.
+---@db: User's Notmuch database object
 function create_query(query_string, db)
   local query = nm.notmuch_query_create(db, query_string)
   return {
@@ -222,7 +222,7 @@ end
 
 -- Returns a table of all tags found in the given database
 --
--- @db: User's Notmuch database object.
+---@db: User's Notmuch database object.
 function get_all_tags(db)
   local out = {}
   local tags = nm.notmuch_database_get_all_tags(db)
@@ -279,7 +279,7 @@ end
 
 -- Return a list of thread objects from a given query.
 --
--- @query: Query object to get threads from
+---@query: Query object to get threads from
 function get_threads(query)
   local out = {}
   local threads = ffi.new('notmuch_threads_t*[1]')
@@ -355,7 +355,7 @@ end
 
 -- Counts the number of unique threads that matched a given query.
 --
--- @query: Query object from `create_query()`
+---@query: Query object from `create_query()`
 function count_threads(query)
   local count = ffi.new("unsigned int[1]")
   local res = nm.notmuch_query_count_threads(query, count)

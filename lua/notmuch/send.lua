@@ -13,9 +13,9 @@ local v = vim.api
 -- confirm the action of sending an email. This is applicable for sending newly
 -- composed mails or replies by passing the mail file path.
 --
--- @param filename string: path to the email message you would like to send
+---@param filename string: path to the email message you would like to send
 --
--- @usage
+---@usage
 --   -- See reply() or compose()
 --   vim.keymap.set('n', '<C-c><C-c>', function()
 --     confirm_sendmail(reply_filename)
@@ -134,11 +134,11 @@ end
 -- `msmtp` with logging capability to that file. Otherwise, it logs to
 -- temporary file.
 --
--- @param filename string: path to the email message you would like to send
+---@param filename string: path to the email message you would like to send
 --
--- @return string: The log message provided by `msmtp`
+---@return string: The log message provided by `msmtp`
 --
--- @usage
+---@usage
 --   require('notmuch.send').sendmail('/tmp/my_new_email.eml')
 s.sendmail = function(filename, opts)
   opts = opts or {}
@@ -307,9 +307,9 @@ end
 -- message headers and body. The mail content is stored in the persistent drafts
 -- directory so the user can come back to it later if needed.
 --
--- @param to string: recipient address (optionaal argument)
+---@param to string: recipient address (optionaal argument)
 --
--- @usage
+---@usage
 --   -- Typically you can run this with `:ComposeMail` or pressing `C`
 --   require('notmuch.send').compose()
 s.compose = function(to)
@@ -442,7 +442,7 @@ end
 -- message. If existing drafts for the message are found, the user can select
 -- one or create a new reply draft.
 --
--- @usage
+---@usage
 --   -- Typically you would just press `R` on a message in a thread
 --   require('notmuch.send').reply()
 s.reply = function()

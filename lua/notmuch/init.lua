@@ -9,10 +9,10 @@ local config = require('notmuch.config')
 -- command(s) and sets configuration options based on user passed arguments or
 -- default values
 --
--- @param opts table: Table of options as passed by the user with their config
+---@param opts table: Table of options as passed by the user with their config
 --                    setup
 --
--- @usage
+---@usage
 -- -- Example from inside `lazy.nvim` plugin spec configuration
 -- {
 --   config = function()
@@ -75,7 +75,7 @@ end
 --
 -- If buffer is already open from before, it will simply load it as active
 --
--- @usage
+---@usage
 -- lua require('notmuch').notmuch_hello()
 nm.notmuch_hello = function()
   local bufno = vim.fn.bufnr('Tags')
@@ -93,11 +93,11 @@ end
 -- database **asynchronously** and returns the list of thread results in a
 -- buffer for the user to browse
 --
--- @param search string: search terms matching format from
+---@param search string: search terms matching format from
 --                       `notmuch-search-terms(7)`
--- @param jumptothreadid string: jump to thread id after search
+---@param jumptothreadid string: jump to thread id after search
 --
--- @usage
+---@usage
 -- lua require('notmuch').search_terms('tag:inbox')
 nm.search_terms = function(search, jumptothreadid)
   local num_threads_found = 0
@@ -179,11 +179,11 @@ end
 -- This function fetches all the messages in the input thread's ID from the
 -- notmuch database and displays them in the mail.vim view.
 --
--- @param s string: The string to fetch the threadid from (individual line, or
+---@param s string: The string to fetch the threadid from (individual line, or
 --                  thread full form)
--- @return true|nil: `true` for successful display, nil for any error
+---@return true|nil: `true` for successful display, nil for any error
 --
--- @usage
+---@usage
 -- nm.show_thread("thread:00000000000003aa")
 -- nm.show_thread(vim.api.nvim_get_current_line())
 nm.show_thread = function(s)
@@ -240,10 +240,10 @@ end
 -- This function runs a search query in your `notmuch` database against the
 -- argument search terms and returns the number of threads which match
 --
--- @param search string: search terms matching format from
+---@param search string: search terms matching format from
 --                       `notmuch-search-terms(7)`
 --
--- @usage
+---@usage
 -- lua require('notmuch').count('tag:inbox') -- > '999'
 nm.count = function(search)
   local db = require 'notmuch.cnotmuch' (config.options.notmuch_db_path, 0)
@@ -259,7 +259,7 @@ end
 -- consists of all the tags in the `notmuch` database for the user to select or
 -- count. They can also search from here etc.
 --
--- @usage
+---@usage
 -- nm.show_all_tags() -- opens the `hello` page
 nm.show_all_tags = function()
   -- Fetch all tags available in the notmuch database
@@ -325,7 +325,7 @@ end
 -- saved/pinned entries use their stored query; plain tag lines use "tag:<name>".
 -- Header, separator, and blank lines are silently ignored.
 --
--- @usage  called by ftplugin/notmuch-hello.vim via c
+---@usage  called by ftplugin/notmuch-hello.vim via c
 nm.count_hello_line = function()
   local lnum = vim.fn.line('.')
   local query_map = vim.b.notmuch_saved_queries or {}
@@ -356,7 +356,7 @@ end
 -- actionable lines are bare tag names and are searched with "tag:<name>".
 -- Header, separator, and blank lines are silently ignored.
 --
--- @usage  called by ftplugin/notmuch-hello.vim via <CR>
+---@usage  called by ftplugin/notmuch-hello.vim via <CR>
 nm.open_hello_line = function()
   local lnum = vim.fn.line('.')
   local query_map = vim.b.notmuch_saved_queries or {}

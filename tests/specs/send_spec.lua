@@ -231,7 +231,7 @@ return {
         end
 
         send.reply()
-        H.eq(draft.eml_path, vim.api.nvim_buf_get_name(0))
+        H.eq(vim.uv.fs_realpath(draft.eml_path), vim.uv.fs_realpath(vim.api.nvim_buf_get_name(0)))
         local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
         H.same({ "Existing draft" }, lines)
       end)

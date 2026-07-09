@@ -2,9 +2,9 @@ local H = dofile("tests/helpers.lua")
 
 return {
   {
-    name = "attach_cmd.Attach adds absolute validated attachments and rejects duplicates",
+    name = "attach.commands.Attach adds absolute validated attachments and rejects duplicates",
     run = function()
-      local attach_cmd = require("notmuch.attach_cmd")
+      local commands = require("notmuch.attach.commands")
       local dir = H.tmpdir()
       local file = H.write_file(dir .. "/doc.txt", "hello")
       local buf = vim.api.nvim_create_buf(false, true)
@@ -16,7 +16,7 @@ return {
         table.insert(notifications, { msg = msg, level = level })
       end
 
-      local handler = attach_cmd.attach_handler(buf)
+      local handler = commands.attach_handler(buf)
       handler({ args = file })
       handler({ args = file })
 
@@ -31,9 +31,9 @@ return {
     end,
   },
   {
-    name = "attach_cmd.Attach rejects missing and unreadable/special files",
+    name = "attach.commands.Attach rejects missing and unreadable/special files",
     run = function()
-      local attach_cmd = require("notmuch.attach_cmd")
+      local commands = require("notmuch.attach.commands")
       local buf = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_set_var(buf, "notmuch_attachments", {})
 
@@ -43,8 +43,8 @@ return {
         table.insert(notifications, { msg = msg, level = level })
       end
 
-      attach_cmd.attach_handler(buf)({ args = "/definitely/missing/notmuch.nvim" })
-      attach_cmd.attach_handler(buf)({ args = "/dev/null" })
+      commands.attach_handler(buf)({ args = "/definitely/missing/notmuch.nvim" })
+      commands.attach_handler(buf)({ args = "/dev/null" })
 
       H.same({}, vim.api.nvim_buf_get_var(buf, "notmuch_attachments"))
       H.contains(notifications[1].msg, "Cannot attach")
@@ -58,9 +58,9 @@ return {
     end,
   },
   {
-    name = "attach_cmd.AttachRemove removes expanded absolute paths",
+    name = "attach.commands.AttachRemove removes expanded absolute paths",
     run = function()
-      local attach_cmd = require("notmuch.attach_cmd")
+      local commands = require("notmuch.attach.commands")
       local cwd = vim.fn.getcwd()
       local dir = cwd .. "/tests/tmp/attach-cmd"
       vim.fn.mkdir(dir, "p")
@@ -76,7 +76,7 @@ return {
         notification = { msg = msg, level = level }
       end
 
-      attach_cmd.remove_handler(buf)({ args = "remove-me.txt" })
+      commands.remove_handler(buf)({ args = "remove-me.txt" })
 
       H.same({}, vim.api.nvim_buf_get_var(buf, "notmuch_attachments"))
       H.contains(notification.msg, "Removed:")
@@ -88,9 +88,9 @@ return {
     end,
   },
   {
-    name = "attach_cmd.Attach rejects directories and removal errors for missing attachments",
+    name = "attach.commands.Attach rejects directories and removal errors for missing attachments",
     run = function()
-      local attach_cmd = require("notmuch.attach_cmd")
+      local commands = require("notmuch.attach.commands")
       local dir = H.tmpdir()
       local buf = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_set_var(buf, "notmuch_attachments", {})
@@ -98,8 +98,8 @@ return {
       local notes = {}
       vim.notify = function(msg, level) table.insert(notes, { msg = msg, level = level }) end
 
-      attach_cmd.attach_handler(buf)({ args = dir })
-      attach_cmd.remove_handler(buf)({ args = dir .. "/missing.txt" })
+      commands.attach_handler(buf)({ args = dir })
+      commands.remove_handler(buf)({ args = dir .. "/missing.txt" })
 
       H.same({}, vim.api.nvim_buf_get_var(buf, "notmuch_attachments"))
       H.contains(notes[1].msg, "Cannot attach")
@@ -112,9 +112,9 @@ return {
     end,
   },
   {
-    name = "attach_cmd.AttachList prints empty and populated attachment lists",
+    name = "attach.commands.AttachList prints empty and populated attachment lists",
     run = function()
-      local attach_cmd = require("notmuch.attach_cmd")
+      local commands = require("notmuch.attach.commands")
       local dir = H.tmpdir()
       local file = H.write_file(dir .. "/listed.txt", string.rep("x", 2048))
       local buf = vim.api.nvim_create_buf(false, true)
@@ -123,10 +123,10 @@ return {
       local printed = {}
       print = function(msg) table.insert(printed, tostring(msg)) end
 
-      attach_cmd.list_handler(buf)({})
+      commands.list_handler(buf)()
       H.contains(printed, "No attachments")
       vim.api.nvim_buf_set_var(buf, "notmuch_attachments", { file, dir .. "/missing.txt" })
-      attach_cmd.list_handler(buf)({})
+      commands.list_handler(buf)()
       H.contains(printed, "Attachments (2):")
       H.contains(printed, "[1] " .. file .. " (2 KB)")
       H.contains(printed, "[2] " .. dir .. "/missing.txt (0 KB)")
@@ -136,12 +136,12 @@ return {
     end,
   },
   {
-    name = "attach_cmd.AttachRemove completion returns current attachments",
+    name = "attach.commands.AttachRemove completion returns current attachments",
     run = function()
-      local attach_cmd = require("notmuch.attach_cmd")
+      local commands = require("notmuch.attach.commands")
       local buf = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_set_var(buf, "notmuch_attachments", { "/a", "/b" })
-      H.same({ "/a", "/b" }, attach_cmd.remove_completion(buf)())
+      H.same({ "/a", "/b" }, commands.remove_completion(buf)())
       vim.api.nvim_buf_delete(buf, { force = true })
     end,
   },

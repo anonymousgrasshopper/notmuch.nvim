@@ -10,7 +10,7 @@ local spec_files = {
   "tests/specs/mime_spec.lua",
   "tests/specs/completion_spec.lua",
   "tests/specs/handlers_spec.lua",
-  "tests/specs/attach_cmd_spec.lua",
+  "tests/specs/attach_commands_spec.lua",
   "tests/specs/attach_parts_spec.lua",
   "tests/specs/config_spec.lua",
   "tests/specs/draft_spec.lua",

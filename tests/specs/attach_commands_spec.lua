@@ -145,4 +145,23 @@ return {
       vim.api.nvim_buf_delete(buf, { force = true })
     end,
   },
+  {
+    name = "attach.commands.setup_buffer registers AttachOpen command",
+    run = function()
+      local commands = require("notmuch.attach.commands")
+      local buf = vim.api.nvim_create_buf(true, false)
+      vim.api.nvim_win_set_buf(0, buf)
+      vim.api.nvim_buf_set_var(buf, "notmuch_attachments", {})
+
+      H.eq(true, commands.setup_buffer(buf))
+      vim.api.nvim_buf_call(buf, function()
+        vim.cmd("AttachOpen")
+      end)
+
+      local scratch_buf = vim.api.nvim_buf_get_var(buf, "notmuch_attachment_scratch_buf")
+      H.ok(vim.api.nvim_buf_is_valid(scratch_buf), "AttachOpen should create a scratch buffer")
+      H.eq(buf, vim.api.nvim_buf_get_var(scratch_buf, "notmuch_parent_draft_buf"))
+      pcall(vim.cmd, "silent! %bwipeout!")
+    end,
+  },
 }

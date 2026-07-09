@@ -37,6 +37,7 @@ return {
           open_handler = open_handler,
           view_handler = view_handler,
           sync = { sync_mode = "background" },
+          drafts = { auto_open_attachment_window = true },
           keymaps = { sendmail = "<F5>" },
         }))
         H.eq(vim.fn.expand("~/custom-db"), config.options.notmuch_db_path)
@@ -44,6 +45,7 @@ return {
         H.eq(open_handler, config.options.open_handler)
         H.eq(view_handler, config.options.view_handler)
         H.eq("background", config.options.sync.sync_mode)
+        H.eq(true, config.options.drafts.auto_open_attachment_window)
         H.eq("<F5>", config.options.keymaps.sendmail)
         H.eq("<C-g><C-a>", config.options.keymaps.attachment_window)
       end)
@@ -51,6 +53,20 @@ return {
       H.ok(#notes > 0, "expected warning for missing user identity")
       H.eq(vim.log.levels.WARN, notes[1].level)
       vim.notify = old_notify
+    end,
+  },
+  {
+    name = "config.setup defaults draft attachment window auto-open to false",
+    run = function()
+      local config = require("notmuch.config")
+      with_mocked_notmuch_config({
+        ["database.path"] = "/tmp/notmuch-db",
+        ["user.name"] = "Tester",
+        ["user.primary_email"] = "tester@example.com",
+      }, function()
+        H.eq(true, config.setup({}))
+        H.eq(false, config.options.drafts.auto_open_attachment_window)
+      end)
     end,
   },
   {

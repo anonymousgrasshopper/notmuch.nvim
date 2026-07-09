@@ -116,7 +116,7 @@ function S.set(buf, attachments, opts)
   end
 
   -- Optionally refresh the scratch buffer if enabled in `opts`
-  if opts.refresh_scrach ~= false then
+  if opts.refresh_scratch ~= false then
     local ok_scratch, scratch = pcall(require, 'notmuch.attach.scratch')
     if ok_scratch and scratch.refresh then
       scratch.refresh(buf)

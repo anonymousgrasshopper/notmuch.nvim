@@ -33,6 +33,7 @@ local function with_send_env(fn)
     folder = dir .. "/drafts",
     delete_sent = false,
     show_sent_drafts = false,
+    auto_open_attachment_window = false,
   }
   vim.ui.select = function(_, _, on_choice) on_choice(nil) end
 
@@ -70,6 +71,14 @@ return {
           'Message body goes here. Add attachments with "' .. config.options.keymaps.attachment_window .. '" or `:AttachOpen`. Send with "' .. config.options.keymaps.sendmail .. '".',
         }, vim.api.nvim_buf_get_lines(main_buf, 0, -1, false))
 
+        local ok_scratch = pcall(vim.api.nvim_buf_get_var, main_buf, "notmuch_attachment_scratch_buf")
+        H.eq(false, ok_scratch, "scratch buffer should not auto-open by default")
+        local commands = vim.api.nvim_buf_get_commands(main_buf, {})
+        H.ok(commands.Attach, "missing Attach command")
+        H.ok(commands.AttachRemove, "missing AttachRemove command")
+        H.ok(commands.AttachList, "missing AttachList command")
+        H.ok(commands.AttachOpen, "missing AttachOpen command")
+
         local before_wins = #vim.api.nvim_list_wins()
         local attach_cb = map_callback("n", config.options.keymaps.attachment_window, main_buf)
         H.ok(attach_cb, "missing compose attachment-window keymap")
@@ -77,6 +86,23 @@ return {
         H.ok(#vim.api.nvim_list_wins() > before_wins, "expected attachment split to open")
         H.ok(vim.api.nvim_get_current_buf() ~= main_buf, "expected attachment buffer to become current")
         vim.cmd("close")
+      end)
+    end,
+  },
+  {
+    name = "send.compose auto-opens attachment window when configured",
+    run = function()
+      with_send_env(function(_, send, config)
+        config.options.drafts.auto_open_attachment_window = true
+
+        send.compose("auto@example.com")
+        local main_buf = vim.api.nvim_get_current_buf()
+        local scratch_buf = vim.api.nvim_buf_get_var(main_buf, "notmuch_attachment_scratch_buf")
+
+        H.ok(vim.api.nvim_buf_is_valid(scratch_buf), "expected linked scratch buffer")
+        H.eq(main_buf, vim.api.nvim_buf_get_var(scratch_buf, "notmuch_parent_draft_buf"))
+        H.eq("notmuch-attach-draft", vim.bo[scratch_buf].filetype)
+        H.eq(main_buf, vim.api.nvim_get_current_buf(), "draft buffer should keep focus after auto-opening scratch")
       end)
     end,
   },

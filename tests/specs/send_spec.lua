@@ -67,7 +67,7 @@ return {
           "Cc: ",
           "Subject: ",
           "",
-          'Message body goes here. Add attachments with "' .. config.options.keymaps.attachment_window .. '". Send with "' .. config.options.keymaps.sendmail .. '".',
+          'Message body goes here. Add attachments with "' .. config.options.keymaps.attachment_window .. '" or `:AttachOpen`. Send with "' .. config.options.keymaps.sendmail .. '".',
         }, vim.api.nvim_buf_get_lines(main_buf, 0, -1, false))
 
         local before_wins = #vim.api.nvim_list_wins()

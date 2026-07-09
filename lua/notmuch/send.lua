@@ -323,7 +323,7 @@ s.compose = function(to)
     'Subject: ',
     '',
     'Message body goes here. Add attachments with "' ..
-    config.options.keymaps.attachment_window .. '". Send with "' .. config.options.keymaps.sendmail .. '".',
+    config.options.keymaps.attachment_window .. '" or `:AttachOpen`. Send with "' .. config.options.keymaps.sendmail .. '".',
   }
 
   -- Prepare draft

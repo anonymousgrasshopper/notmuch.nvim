@@ -93,7 +93,7 @@ end
 ---@param s string: input string
 ---@param delim string: delimiter string (can be char or more complex)
 --
----@returns out table: table of strings as split by the function given delim
+---@return out table: table of strings as split by the function given delim
 u.split = function(s, delim)
   local out = {}
   local i = 1
@@ -112,7 +112,7 @@ end
 ---@param s string: input string
 ---@param length integer: length integer
 --
----@returns out table: table of strings as split by the function given length
+---@return out table: table of strings as split by the function given length
 u.split_length = function(s, length)
   local out = {}
 
@@ -229,7 +229,7 @@ end
 -- iteratively scanning each line backwards for the `id:` field. If used
 -- incorrectly or no id is found, a helpful message will indicate the same
 --
----@returns id int: id of the email messageo
+---@return id int: id of the email messageo
 --
 ---@usage
 -- local id = require('notmuch.util').find_cursor_msg_id()

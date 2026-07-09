@@ -1,9 +1,11 @@
 local s = {}
+
+local attach = require('notmuch.attach')
+local config = require('notmuch.config')
 local m = require('notmuch.mime')
 local thread = require('notmuch.thread')
 local v = vim.api
 
-local config = require('notmuch.config')
 
 -- Prompt confirmation for sending an email
 --
@@ -30,21 +32,6 @@ local confirm_sendmail = function()
   else
     return false
   end
-end
-
-local attachment_lines = function(buf_attach)
-  local lines = v.nvim_buf_get_lines(buf_attach, 0, -1, false)
-  local attachments = {}
-
-  for _, line in ipairs(lines) do
-    if line:find('%S') then
-      local filepath = vim.fn.expand(line)
-      filepath = vim.fn.fnamemodify(filepath, ':p')
-      table.insert(attachments, filepath)
-    end
-  end
-
-  return attachments
 end
 
 local build_plain_msg_file = function(buf, output_filename)
@@ -244,16 +231,15 @@ local create_reply_draft = function(message_id)
   return require('notmuch.draft').create_reply_draft(message_id, lines)
 end
 
-local send_draft = function(buf, buf_attach, draft)
+local send_draft = function(buf, draft)
   -- Saves current draft mail content for good measure
   v.nvim_buf_call(buf, function()
     vim.cmd('silent! write')
   end)
 
-  -- Collect attachments for `buf_attach` (scratch) and save to draft metadata
-  local attachments = attachment_lines(buf_attach)
-  v.nvim_buf_set_var(buf, 'notmuch_attachments', attachments)
-  if not require('notmuch.draft').save_attachments(draft.json_path, attachments) then
+  -- Sync any open attachment scratch buffer and persist attachment metadata
+  local attachments = attach.prepare_send(buf)
+  if not attachments then
     vim.notify('Failed to persist draft attachment metadata before sending', vim.log.levels.ERROR)
     return false
   end
@@ -292,34 +278,25 @@ local open_draft_buffer = function(draft)
 
   -- Set buffer-local variables for metadata and attachments
   v.nvim_buf_set_var(buf, 'notmuch_draft_json_path', draft.json_path)
-  v.nvim_buf_set_var(buf, 'notmuch_attachments', draft.metadata.attachments or {})
 
-  -- Create the attachment manager scratch buffer
-  local buf_attach = v.nvim_create_buf(true, true)
-  v.nvim_buf_set_lines(buf_attach, 0, -1, false, draft.metadata.attachments or {})
-
-  -- Setup autocmd for auto-syncing text in scratch buffer to attachments list
-  v.nvim_create_autocmd({ 'TextChanged', 'TextChangedI', 'BufLeave' }, {
-    buffer = buf_attach,
-    callback = function()
-      local attachments = attachment_lines(buf_attach)
-      v.nvim_buf_set_var(buf, 'notmuch_attachments', attachments)
-      require('notmuch.draft').save_attachments(draft.json_path, attachments)
-    end,
+  -- Set up draft buffer but keep focus on the draft window/buffer
+  local draft_win = v.nvim_get_current_win()
+  attach.setup_draft_buffer(buf, draft.metadata.attachments or {}, {
+    open_scratch = config.options.drafts.auto_open_attachment_window == true,
   })
+  if v.nvim_win_is_valid(draft_win) then
+    v.nvim_set_current_win(draft_win)
+  end
 
   -- Keymap for showing attachment_window
   vim.keymap.set('n', config.options.keymaps.attachment_window, function()
-    vim.api.nvim_open_win(buf_attach, true, {
-      split = 'left',
-      win = 0
-    })
+    attach.open_scratch(buf)
   end, { buffer = true })
 
   -- Keymap for sending the email
   vim.keymap.set('n', config.options.keymaps.sendmail, function()
     if confirm_sendmail() then
-      send_draft(buf, buf_attach, draft)
+      send_draft(buf, draft)
     end
   end, { buffer = true })
 end

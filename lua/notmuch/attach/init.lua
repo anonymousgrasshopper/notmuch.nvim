@@ -1,3 +1,12 @@
+--- Public attachment API for notmuch draft buffers.
+---
+--- This module re-exports the attachment state, scratch UI, and command helpers
+--- used by draft buffers. Prefer requiring this module from external call sites
+--- instead of depending on the lower-level implementation modules directly.
+
+---@class notmuch.attach.SetupDraftBufferOpts
+---@field open_scratch? boolean Open the attachment scratch buffer after setup.
+
 local A = {}
 
 -- -----------------------------------------------------------------------------
@@ -44,6 +53,12 @@ A.remove_completion = commands.remove_completion
 -- Helper functions
 -- -----------------------------------------------------------------------------
 
+--- Initialize attachment state and commands for a draft buffer.
+---
+---@param buf integer Draft buffer.
+---@param attachments? notmuch.AttachmentPath[] Initial attachment paths.
+---@param opts? notmuch.attach.SetupDraftBufferOpts
+---@return boolean ok
 function A.setup_draft_buffer(buf, attachments, opts)
   opts = opts or {}
 
@@ -65,6 +80,10 @@ function A.setup_draft_buffer(buf, attachments, opts)
   return true
 end
 
+--- Synchronize attachment UI state and persist attachments before sending.
+---
+---@param buf integer Draft buffer.
+---@return notmuch.AttachmentPath[]? attachments Normalized attachments, or nil if persistence failed.
 function A.prepare_send(buf)
   scratch.sync_open(buf)
 

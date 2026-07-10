@@ -7,8 +7,10 @@
 --- While drafting, the user will have access to a linked scratch buffer for
 --- listing attachment filepaths. This module synchronizes those buffer lines to
 --- the canonical state (sidecar JSON) and the buffer-local variable which
---- mirrors it. Transactions to the attachment state is done through the state
+--- mirrors it. Transactions to the attachment state are done through the state
 --- module, not directly here.
+
+---@class notmuch.attach.ScratchOpenOpts
 
 local S = {}
 
@@ -106,6 +108,15 @@ end
 -- PUBLIC FUNCTIONS
 -- -----------------------------------------------------------------------------
 
+--- Open or focus the attachment scratch buffer for a draft buffer.
+---
+--- If a linked scratch buffer already exists, it is shown in a split and
+--- refreshed. Otherwise, a new scratch buffer is created and linked to the
+--- draft buffer.
+---
+---@param draft_buf integer? Draft buffer. Defaults to the current buffer.
+---@param opts? notmuch.attach.ScratchOpenOpts Reserved for future options.
+---@return integer scratch_buf Buffer handle of the scratch buffer.
 function S.open(draft_buf, opts)
   draft_buf = normalize_buf(draft_buf)
   opts = opts or {}
@@ -142,6 +153,10 @@ function S.open(draft_buf, opts)
   return scratch_buf
 end
 
+--- Refresh a linked scratch buffer from canonical attachment state.
+---
+---@param draft_buf integer? Draft buffer. Defaults to the current buffer.
+---@return boolean ok False when no linked scratch buffer exists.
 function S.refresh(draft_buf)
   draft_buf = normalize_buf(draft_buf)
 
@@ -164,6 +179,11 @@ function S.refresh(draft_buf)
   return true
 end
 
+--- Synchronize canonical attachment state from scratch buffer lines.
+---
+---@param scratch_buf integer? Scratch buffer. Defaults to the current buffer.
+---@return boolean ok
+---@return string? err Error message when synchronization fails.
 function S.sync_from_scratch(scratch_buf)
   -- Normalize scratch buffer input and verify it is not being modified
   scratch_buf = normalize_buf(scratch_buf)
@@ -193,6 +213,14 @@ function S.sync_from_scratch(scratch_buf)
   return true
 end
 
+--- Synchronize any open attachment scratch buffer for a draft buffer.
+---
+--- This is intended to run before sending or persisting the draft so edits made
+--- directly in the scratch buffer are not lost.
+---
+---@param draft_buf integer? Draft buffer. Defaults to the current buffer.
+---@return boolean ok
+---@return string? err Error message when synchronization fails.
 function S.sync_open(draft_buf)
   -- Normalize input draft_buf
   draft_buf = normalize_buf(draft_buf)

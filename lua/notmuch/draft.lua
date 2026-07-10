@@ -67,6 +67,22 @@
 ---   - `reply-<timestamp>-<random-hash>.json`
 ---     - Sidecar file with attachments/metadata for persistence
 
+---@class notmuch.DraftMetadata
+---@field schema_version integer Metadata schema version.
+---@field kind "compose"|"reply" Draft kind.
+---@field message_id? string Original message ID for reply drafts.
+---@field attachments notmuch.AttachmentPath[] Attachment paths persisted with the draft.
+---@field created_at string UTC creation timestamp.
+---@field updated_at string UTC last-updated timestamp.
+---@field sent_at any UTC sent timestamp, nil, or vim.NIL.
+
+---@class notmuch.Draft
+---@field kind "compose"|"reply" Draft kind.
+---@field eml_path string Path to the draft `.eml` file.
+---@field json_path string Path to the sidecar metadata `.json` file.
+---@field metadata notmuch.DraftMetadata Draft metadata.
+---@field subject? string Extracted subject for display.
+
 local D = {}
 
 local config = require('notmuch.config')
@@ -128,22 +144,40 @@ local function extract_draft_subject(eml_path)
   return subject
 end
 
+--- Return the directory used for newly composed drafts.
+---
+---@return string path
 function D.compose_dir()
   return vim.fs.joinpath(config.options.drafts.folder, 'compose')
 end
 
+--- Return the root directory used for reply drafts.
+---
+---@return string path
 function D.replies_dir()
   return vim.fs.joinpath(config.options.drafts.folder, 'replies')
 end
 
+--- Return the reply draft group directory for a message ID.
+---
+---@param message_id string Original message ID.
+---@return string path
 function D.reply_group_dir(message_id)
   return vim.fs.joinpath(D.replies_dir(), vim.fn.sha256(message_id))
 end
 
+--- Return the metadata path for a reply draft group.
+---
+---@param message_id string Original message ID.
+---@return string path
 function D.reply_group_metadata_path(message_id)
   return vim.fs.joinpath(D.reply_group_dir(message_id), 'message.json')
 end
 
+--- Ensure the reply draft group directory and metadata file exist.
+---
+---@param message_id string Original message ID.
+---@return string? dir Reply group directory, or nil on failure.
 function D.ensure_reply_group(message_id)
   -- Validate the input `message_id` format
   if type(message_id) ~= 'string' or message_id == '' then
@@ -185,11 +219,19 @@ function D.ensure_reply_group(message_id)
   return dir
 end
 
+--- Return the sidecar metadata path for an `.eml` draft path.
+---
+---@param eml_path string Draft `.eml` path.
+---@return string path Sidecar `.json` path.
 function D.sidecar_path(eml_path)
   local path = eml_path:gsub('%.eml$', '.json')
   return path
 end
 
+--- Read and decode draft metadata from a JSON sidecar file.
+---
+---@param path string Sidecar `.json` path.
+---@return notmuch.DraftMetadata? metadata
 function D.read_metadata(path)
   local ok, lines = pcall(vim.fn.readfile, path)
   if not ok then
@@ -207,6 +249,11 @@ function D.read_metadata(path)
   return metadata
 end
 
+--- Encode and write draft metadata to a JSON sidecar file.
+---
+---@param path string Sidecar `.json` path.
+---@param metadata notmuch.DraftMetadata|table Metadata to encode.
+---@return boolean ok
 function D.write_metadata(path, metadata)
   local ok, json = pcall(vim.json.encode, metadata)
   if not ok then
@@ -223,6 +270,11 @@ function D.write_metadata(path, metadata)
   return true
 end
 
+--- Save attachments into an existing draft metadata sidecar.
+---
+---@param json_path string Sidecar `.json` path.
+---@param attachments? notmuch.AttachmentPath[] Attachment paths.
+---@return boolean ok
 function D.save_attachments(json_path, attachments)
   local metadata = D.read_metadata(json_path)
   if not metadata then
@@ -235,6 +287,14 @@ function D.save_attachments(json_path, attachments)
   return D.write_metadata(json_path, metadata)
 end
 
+--- Save a buffer's attachment list to its associated draft sidecar.
+---
+--- If the buffer is not associated with a draft sidecar, this is a no-op and
+--- returns true.
+---
+---@param buf integer Draft buffer.
+---@param attachments? notmuch.AttachmentPath[] Attachment paths.
+---@return boolean ok
 function D.save_buffer_attachments(buf, attachments)
   local ok, json_path = pcall(vim.api.nvim_buf_get_var, buf, 'notmuch_draft_json_path')
   if not ok or not json_path then
@@ -244,6 +304,10 @@ function D.save_buffer_attachments(buf, attachments)
   return D.save_attachments(json_path, attachments)
 end
 
+--- Create a new compose draft and sidecar metadata file.
+---
+---@param lines string[] Email contents to write to the `.eml` file.
+---@return notmuch.Draft? draft
 function D.create_compose_draft(lines)
   if type(lines) ~= 'table' then
     vim.notify('create_compose_draft expected lines table', vim.log.levels.ERROR)
@@ -302,6 +366,11 @@ function D.create_compose_draft(lines)
   }
 end
 
+--- Create a new reply draft and sidecar metadata file.
+---
+---@param message_id string Original message ID being replied to.
+---@param lines string[] Email contents to write to the `.eml` file.
+---@return notmuch.Draft? draft
 function D.create_reply_draft(message_id, lines)
   -- Validate message_id
   if type(message_id) ~= 'string' or message_id == '' then
@@ -365,6 +434,10 @@ function D.create_reply_draft(message_id, lines)
   }
 end
 
+--- Load a compose draft from an `.eml` path and its sidecar metadata.
+---
+---@param eml_path string Draft `.eml` path.
+---@return notmuch.Draft? draft
 function D.load_compose_draft(eml_path)
   local json_path = D.sidecar_path(eml_path)
   local metadata = D.read_metadata(json_path)
@@ -381,6 +454,10 @@ function D.load_compose_draft(eml_path)
   }
 end
 
+--- Load a reply draft from an `.eml` path and its sidecar metadata.
+---
+---@param eml_path string Draft `.eml` path.
+---@return notmuch.Draft? draft
 function D.load_reply_draft(eml_path)
   -- Validate eml_path
   if type(eml_path) ~= 'string' or eml_path == '' then
@@ -414,6 +491,11 @@ local function is_unsent(draft)
   return draft.metadata.sent_at == nil or draft.metadata.sent_at == vim.NIL
 end
 
+--- List compose drafts sorted by most recently updated.
+---
+--- Sent drafts are included only when enabled by configuration.
+---
+---@return notmuch.Draft[]? drafts
 function D.list_compose_drafts()
   local dir = D.compose_dir()
   if not ensure_dir(dir) then
@@ -443,6 +525,10 @@ function D.list_compose_drafts()
   return drafts
 end
 
+--- List reply drafts for a message ID sorted by most recently updated.
+---
+---@param message_id string Original message ID.
+---@return notmuch.Draft[]? drafts
 function D.list_reply_drafts(message_id)
   -- Validate message_id input
   if type(message_id) ~= 'string' or message_id == '' then
@@ -484,6 +570,11 @@ function D.list_reply_drafts(message_id)
   return drafts
 end
 
+--- List all reply drafts sorted by most recently updated.
+---
+--- Sent drafts are included only when enabled by configuration.
+---
+---@return notmuch.Draft[]? drafts
 function D.list_all_reply_drafts()
   -- Check and ensure replies/ dir exists
   local dir = D.replies_dir()
@@ -516,6 +607,9 @@ function D.list_all_reply_drafts()
   return drafts
 end
 
+--- List all compose and reply drafts sorted by most recently updated.
+---
+---@return notmuch.Draft[] drafts
 function D.list_all_drafts()
   local drafts = {}
 
@@ -536,6 +630,10 @@ function D.list_all_drafts()
   return drafts
 end
 
+--- Mark a draft sidecar as sent.
+---
+---@param json_path string Sidecar `.json` path.
+---@return boolean ok
 function D.mark_sent(json_path)
   local metadata = D.read_metadata(json_path)
   if not metadata then
@@ -549,6 +647,10 @@ function D.mark_sent(json_path)
   return D.write_metadata(json_path, metadata)
 end
 
+--- Delete a draft's `.eml` file and sidecar metadata file.
+---
+---@param draft_or_eml_path notmuch.Draft|string Draft object or `.eml` path.
+---@return boolean ok
 function D.delete_draft(draft_or_eml_path)
   local eml_path
   local json_path

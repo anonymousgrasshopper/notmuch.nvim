@@ -42,6 +42,10 @@ end
 -- PUBLIC FUNCTIONS
 -- -----------------------------------------------------------------------------
 
+--- Create a handler for the `:Attach` buffer-local command.
+---
+---@param buf integer? Draft buffer. Defaults to the current buffer.
+---@return fun(opts: vim.api.keyset.create_user_command.command_args)
 function C.attach_handler(buf)
   buf = normalize_buf(buf)
 
@@ -63,6 +67,10 @@ function C.attach_handler(buf)
   end
 end
 
+--- Create a handler for the `:AttachRemove` buffer-local command.
+---
+---@param buf integer? Draft buffer. Defaults to the current buffer.
+---@return fun(opts: vim.api.keyset.create_user_command.command_args)
 function C.remove_handler(buf)
   buf = normalize_buf(buf)
 
@@ -81,6 +89,10 @@ function C.remove_handler(buf)
   end
 end
 
+--- Create a handler for the `:AttachList` buffer-local command.
+---
+---@param buf integer? Draft buffer. Defaults to the current buffer.
+---@return fun()
 function C.list_handler(buf)
   buf = normalize_buf(buf)
 
@@ -102,6 +114,10 @@ function C.list_handler(buf)
   end
 end
 
+--- Create a handler for the `:AttachOpen` buffer-local command.
+---
+---@param buf integer? Draft buffer. Defaults to the current buffer.
+---@return fun()
 function C.open_handler(buf)
   buf = normalize_buf(buf)
 
@@ -110,6 +126,10 @@ function C.open_handler(buf)
   end
 end
 
+--- Create completion source for `:AttachRemove`.
+---
+---@param buf integer? Draft buffer. Defaults to the current buffer.
+---@return fun(): notmuch.AttachmentPath[]
 function C.remove_completion(buf)
   buf = normalize_buf(buf)
 
@@ -118,6 +138,10 @@ function C.remove_completion(buf)
   end
 end
 
+--- Register attachment-related user commands on a draft buffer.
+---
+---@param buf integer? Draft buffer. Defaults to the current buffer.
+---@return true
 function C.setup_buffer(buf)
   buf = normalize_buf(buf)
 

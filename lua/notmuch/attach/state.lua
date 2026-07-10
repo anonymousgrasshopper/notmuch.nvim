@@ -9,6 +9,12 @@
 --- 1. Canonical sidecar JSON attachments metadata
 --- 2. Runtime state with buffer-local variable `vim.b[buf].notmuch_attachments`
 
+---@alias notmuch.AttachmentPath string
+
+---@class notmuch.attach.SetOpts
+---@field persist? boolean Whether to persist to the draft JSON sidecar. Defaults to true.
+---@field refresh_scratch? boolean Whether to refresh the linked scratch buffer. Defaults to true.
+
 local S = {}
 
 -- -----------------------------------------------------------------------------
@@ -85,6 +91,13 @@ end
 -- PUBLIC FUNCTIONS
 -- -----------------------------------------------------------------------------
 
+--- Get attachments for a draft buffer.
+---
+--- Returns a copy of the buffer-local attachment list so callers cannot mutate
+--- the canonical runtime state directly.
+---
+---@param buf integer? Draft buffer. Defaults to the current buffer.
+---@return notmuch.AttachmentPath[] attachments
 function S.get(buf)
   -- Validate/normalize buffer
   buf = normalize_buf(buf)
@@ -98,6 +111,16 @@ function S.get(buf)
   return copy_list(attachments)
 end
 
+--- Replace the attachment list for a draft buffer.
+---
+--- Paths are expanded to absolute paths, empty entries are removed, and
+--- duplicates are discarded. By default, the result is persisted to the draft
+--- sidecar metadata and any linked scratch buffer is refreshed.
+---
+---@param buf integer? Draft buffer. Defaults to the current buffer.
+---@param attachments notmuch.AttachmentPath[] Attachment paths to store.
+---@param opts? notmuch.attach.SetOpts Persistence/refresh options.
+---@return boolean ok
 function S.set(buf, attachments, opts)
   -- Validate/normalize arguments
   buf = normalize_buf(buf)
@@ -126,6 +149,17 @@ function S.set(buf, attachments, opts)
   return true
 end
 
+--- Add an attachment to a draft buffer.
+---
+--- The path is normalized and validated before being appended. Duplicate paths
+--- are rejected.
+---
+---@param buf integer? Draft buffer. Defaults to the current buffer.
+---@param path string Attachment path.
+---@param opts? notmuch.attach.SetOpts Persistence/refresh options.
+---@return boolean ok
+---@return string path_or_err Normalized path on success, error message on failure.
+---@return integer? count Attachment count on success.
 function S.add(buf, path, opts)
   -- Validate/normalize buffer
   buf = normalize_buf(buf)
@@ -164,6 +198,14 @@ function S.add(buf, path, opts)
   return true, filepath, #attachments
 end
 
+--- Remove an attachment from a draft buffer.
+---
+---@param buf integer? Draft buffer. Defaults to the current buffer.
+---@param path string Attachment path.
+---@param opts? notmuch.attach.SetOpts Persistence/refresh options.
+---@return boolean ok
+---@return string path_or_err Normalized path on success, error message on failure.
+---@return integer? count Attachment count on success.
 function S.remove(buf, path, opts)
   -- Validate/normalize buffer
   buf = normalize_buf(buf)
@@ -198,6 +240,10 @@ function S.remove(buf, path, opts)
   return true, filepath, #attachments
 end
 
+--- Persist the current buffer-local attachment state to the draft sidecar JSON.
+---
+---@param buf integer? Draft buffer. Defaults to the current buffer.
+---@return boolean ok
 function S.persist(buf)
   -- Validate/normalize buffer
   buf = normalize_buf(buf)

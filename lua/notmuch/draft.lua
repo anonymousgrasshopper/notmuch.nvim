@@ -527,6 +527,8 @@ end
 
 --- List reply drafts for a message ID sorted by most recently updated.
 ---
+--- Sent drafts are included only when enabled by configuration.
+---
 ---@param message_id string Original message ID.
 ---@return notmuch.Draft[]? drafts
 function D.list_reply_drafts(message_id)
@@ -554,7 +556,10 @@ function D.list_reply_drafts(message_id)
   local drafts = {}
   for _, eml_path in ipairs(paths) do
     local draft = D.load_reply_draft(eml_path)
-    if draft and draft.kind == 'reply' and draft.metadata.message_id == message_id then
+    if draft
+      and draft.kind == 'reply'
+      and draft.metadata.message_id == message_id
+      and (config.options.drafts.show_sent_drafts or is_unsent(draft)) then
       table.insert(drafts, draft)
     end
   end

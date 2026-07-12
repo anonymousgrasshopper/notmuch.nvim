@@ -50,7 +50,7 @@ return {
   {
     name = "draft creates reply groups and lists reply drafts",
     run = function()
-      with_draft_env(function(draft)
+      with_draft_env(function(draft, config)
         local message_id = "msg/with/slash"
         local group = draft.ensure_reply_group(message_id)
         H.eq(vim.fs.joinpath(draft.replies_dir(), vim.fn.sha256(message_id)), group)
@@ -62,6 +62,9 @@ return {
         H.eq(message_id, reply.metadata.message_id)
         H.eq("Re: Test", reply.subject)
 
+        local sent_reply = draft.create_reply_draft(message_id, { "Subject: Sent Reply", "", "sent reply" })
+        draft.mark_sent(sent_reply.json_path)
+
         local replies = draft.list_reply_drafts(message_id)
         H.eq(1, #replies)
         H.eq(reply.eml_path, replies[1].eml_path)
@@ -69,6 +72,11 @@ return {
 
         H.eq(1, #draft.list_all_reply_drafts())
         H.eq(1, #draft.list_all_drafts())
+
+        config.options.drafts.show_sent_drafts = true
+        H.eq(2, #draft.list_reply_drafts(message_id))
+        H.eq(2, #draft.list_all_reply_drafts())
+        H.eq(2, #draft.list_all_drafts())
       end)
     end,
   },

@@ -65,11 +65,7 @@ C.defaults = function()
       auto_open_attachment_window = false,
     },
     open_handler = function(attachment)
-			if vim.fn.has("nvim-0.10") == 1 then
-				vim.ui.open(attachment.path)
-			else
-				require('notmuch.handlers').default_open_handler(attachment)
-			end
+      require('notmuch.handlers').default_open_handler(attachment)
     end,
     view_handler = function(attachment)
       return require('notmuch.handlers').default_view_handler(attachment)

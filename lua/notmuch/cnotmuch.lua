@@ -159,10 +159,11 @@ ffi.cdef[[
   notmuch_message_tags_to_maildir_flags (notmuch_message_t *message);
 ]]
 
--- checks wether the current Notmuch version is greater or equal to the one provided
----@param version_str string: should be the output of 'notmuch --version'
----@param req_major  integer: the minimum major version required
----@param req_minor  integer: the minimum minor versino required
+-- Check whether a `notmuch --version` string satisfies a minimum version.
+---@param version_str string Output from `notmuch --version`.
+---@param req_major integer Minimum required major version.
+---@param req_minor integer Minimum required minor version.
+---@return boolean ok True when the parsed version is greater than or equal to the requested version.
 local function check_notmuch_version(version_str, req_major, req_minor)
   local major, minor = version_str:match("(%d+)%.?(%d*)")
   major = tonumber(major) or 0
@@ -180,10 +181,11 @@ end
 -- Module-level cache for API version detection
 local has_new_api = false
 
--- Opens a Notmuch database. Entry point into the api.
+-- Opens a Notmuch database. Entry point into the API.
 --
----@param path string: Directory where the Notmuch database is stored.
----@param mode integer: Read/write mode. Either 0 for read or 1 for read/write.
+---@param path string Directory where the Notmuch database is stored.
+---@param mode integer Notmuch open mode: 0 for read-only, 1 for read/write.
+---@return table db Database wrapper with query/message/tag helpers and `close()`.
 local function open_database(path, mode)
   local db = ffi.new('notmuch_database_t*[1]')
   local res
@@ -205,10 +207,11 @@ local function open_database(path, mode)
   }
 end
 
--- Creates a query object given a search string.
+-- Creates a query wrapper for a search string.
 --
----@param query_string string: String given by user to search the database.
----@param db unknown: User's Notmuch database object
+---@param query_string string Search string to run against the database.
+---@param db unknown Raw `notmuch_database_t*` database handle.
+---@return table query Query wrapper with thread/message/count helpers.
 function create_query(query_string, db)
   local query = nm.notmuch_query_create(db, query_string)
   return {
@@ -220,9 +223,10 @@ function create_query(query_string, db)
   }
 end
 
--- Returns a table of all tags found in the given database
+-- Returns all tags found in the given database.
 --
----@param db unknown: User's Notmuch database object.
+---@param db unknown Raw `notmuch_database_t*` database handle.
+---@return string[] tags Tag names.
 function get_all_tags(db)
   local out = {}
   local tags = nm.notmuch_database_get_all_tags(db)
@@ -277,9 +281,10 @@ function thread_obj:rm_tag(tag)
   end
 end
 
--- Return a list of thread objects from a given query.
+-- Return a list of thread wrappers for a raw query handle.
 --
----@param query unknown: Query object to get threads from
+---@param query unknown Raw `notmuch_query_t*` query handle.
+---@return table[] threads Thread wrappers.
 function get_threads(query)
   local out = {}
   local threads = ffi.new('notmuch_threads_t*[1]')
@@ -353,9 +358,10 @@ function get_messages(query)
   assert(res == 0, 'Error retrieving threads, err=' .. res)
 end
 
--- Counts the number of unique threads that matched a given query.
+-- Counts the number of unique threads that matched a raw query handle.
 --
----@param query unknown: Query object from `create_query()`
+---@param query unknown Raw `notmuch_query_t*` query handle.
+---@return integer count Number of matching threads.
 function count_threads(query)
   local count = ffi.new("unsigned int[1]")
   local res = nm.notmuch_query_count_threads(query, count)

@@ -9,8 +9,7 @@ local config = require('notmuch.config')
 -- command(s) and sets configuration options based on user passed arguments or
 -- default values
 --
----@param opts table: Table of options as passed by the user with their config
---                    setup
+---@param opts? table User configuration overrides passed to setup.
 --
 ---@usage
 -- -- Example from inside `lazy.nvim` plugin spec configuration
@@ -93,9 +92,8 @@ end
 -- database **asynchronously** and returns the list of thread results in a
 -- buffer for the user to browse
 --
----@param search string: search terms matching format from
---                       `notmuch-search-terms(7)`
----@param jumptothreadid string: jump to thread id after search
+---@param search string Search terms matching `notmuch-search-terms(7)`.
+---@param jumptothreadid? string Thread id to jump to after results load.
 --
 ---@usage
 -- lua require('notmuch').search_terms('tag:inbox')
@@ -179,9 +177,8 @@ end
 -- This function fetches all the messages in the input thread's ID from the
 -- notmuch database and displays them in the mail.vim view.
 --
----@param s string: The string to fetch the threadid from (individual line, or
---                  thread full form)
----@return true|nil: `true` for successful display, nil for any error
+---@param s? string Thread id/search-result line to extract the thread id from; defaults to the current line.
+---@return true|nil reused_buffer True when an existing thread buffer was reused; nil otherwise.
 --
 ---@usage
 -- nm.show_thread("thread:00000000000003aa")
@@ -237,14 +234,14 @@ end
 
 -- Counts the number of threads matching the search terms
 --
--- This function runs a search query in your `notmuch` database against the
--- argument search terms and returns the number of threads which match
+-- This function runs a search query in your `notmuch` database and returns a
+-- human-readable summary string with the matching thread count.
 --
----@param search string: search terms matching format from
---                       `notmuch-search-terms(7)`
+---@param search string Search terms matching `notmuch-search-terms(7)`.
+---@return string summary Formatted count summary.
 --
 ---@usage
--- lua require('notmuch').count('tag:inbox') -- > '999'
+-- lua require('notmuch').count('tag:inbox') -- > '[tag:inbox]: 999 threads'
 nm.count = function(search)
   local db = require 'notmuch.cnotmuch' (config.options.notmuch_db_path, 0)
   local q = db.create_query(search)

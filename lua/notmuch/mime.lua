@@ -3,15 +3,15 @@ local u = require('notmuch.util')
 local v = vim.api
 
 
---- Generates a mime attachment table
+---Build MIME part descriptors for outgoing attachments.
 ---
---- This function takes in a list of paths, validates each file exists and is
---- readable, gets the mime type, and sets the encoding. If any file is invalid,
---- throws an error to prevent sending email with corrupted attachments.
+---Each non-empty path is validated as a readable regular file before it is
+---included. If any path is invalid, this function raises one aggregated error so
+---the caller does not send a partially-valid attachment set.
 ---
---- @param paths table: list of file path strings
---- @return table: table of mime attachments
---- @throws error if any attachment file is invalid
+---@param paths string[] List of attachment file paths.
+---@return table[] attachments MIME part descriptors for `make_mime_msg()`.
+---Raises an error if one or more attachment paths are invalid.
 m.create_mime_attachments = function (paths)
   local mimes = {}
   local invalid_files = {}  -- Collect all errors for better UX
@@ -59,16 +59,16 @@ end
 
 
 
--- Extracts `Key: Value` pair from a list of lines (RFC 5322 compliant)
+-- Extract RFC 5322-style headers and body lines from a message.
 --
--- This function takes in a list of lines and extracts the `Key: Value` pair if present,
--- it then adds them to a table as { key = value }. Parsing stops at the first blank line
--- (per RFC 5322), and all subsequent lines are treated as message body.
--- Supports RFC 5322 header continuation (lines starting with whitespace).
+-- This function consumes a list of message lines. It records header lines in an
+-- attributes table keyed by header name, unfolds continuation lines, and stops
+-- parsing headers at the first blank line or first non-header line. The returned
+-- body table includes the header/body separator when one is present.
 --
----@param lines string: input string
---
----@return out table: table of key and values
+---@param lines string[] Message lines.
+---@return table attributes Header values keyed by header name.
+---@return string[] msg Body lines after header parsing.
 m.get_msg_attributes = function(lines)
   local attributes = {}
   local msg = {}
@@ -141,25 +141,19 @@ m.example_mime = {
   }
 }
 
--- Returns mime type of given file
+-- Returns the MIME type reported by the `file` command for a path.
 --
--- This function gets the mime type of a given file
---
----@param path string: input string
---
----@return out string: string of mime type of file given
+---@param path string File path to inspect.
+---@return string mime_type Trimmed MIME type, for example `text/plain`.
 m.get_mime_type = function(path)
   local output = vim.fn.system({'file', '--brief', '--mime-type', path})
   return vim.fn.trim(output)
 end
 
--- Returns a pseudo random character string of given length
+-- Returns a pseudo-random uppercase ASCII boundary string.
 --
--- This function generates a pseudo random character string of given lenth
---
----@param length int: input int
---
----@return out string: string of pseudo random characters
+---@param length integer Number of characters to generate.
+---@return string boundary Pseudo-random boundary string.
 m.get_boundary = function(length)
   if length > 0 then
     return m.get_boundary(length - 1) .. string.char(math.random(65, 65 + 25))
@@ -169,13 +163,14 @@ m.get_boundary = function(length)
 end
 
 
--- Returns a mime compatible message
+-- Build a MIME message or MIME part as lines.
 --
--- This function returns a mime compatible message with parameters given by the mime_table
+-- `mime_table` may describe a multipart node via its `mime` children, or a leaf
+-- node backed by `mime_table.file`. Leaf files are read from disk; base64 parts
+-- are encoded and wrapped, while other parts are inserted as plain lines.
 --
----@param mime_table table: input table
---
----@return out table: list of string
+---@param mime_table table MIME message/part descriptor.
+---@return string[] lines MIME-formatted message lines.
 m.make_mime_msg = function(mime_table)
   local mime = {}
   if mime_table.mime then

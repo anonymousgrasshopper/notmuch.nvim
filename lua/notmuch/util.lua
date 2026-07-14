@@ -1,24 +1,13 @@
 local u = {}
 local v = vim.api
 
---- Checks if the composed emails contains any attachments expected to be sent.
+---Check whether an attachment scratch buffer is empty.
 ---
---- This is mainly used after composing the email and triggering the email to be
---- sent. More specfically, it returns `true` if the attachment window/buffer
---- contains any attachments to be sent along with the email. This is done by
---- checking if the attachment window has any text in it (if there is no text,
---- then no attachments are included).
+---Returns `true` only when every line is blank/whitespace. Callers can use this
+---to decide whether a draft should be sent as plain text or as multipart MIME.
 ---
---- This is particularly useful in figuring out how to formulate the composed
---- message to be fed to the email server.
----
---- - If there are no attachments, the caller will formulate a plain text
----   message with only the body with `build_plain_msg`.
----
---- - If there are attachments, the caller will invoke `build_mime_msg`.
----
---- @param buf_attach integer: buffer ID of the attachment window
---- @return boolean: true if attachment buffer has attachments (any text)
+---@param buf_attach integer Buffer id of the attachment scratch buffer.
+---@return boolean empty True when no non-whitespace attachment path is present.
 u.empty_attachment_window = function (buf_attach)
   for _, line in ipairs(v.nvim_buf_get_lines(buf_attach, 0, -1, false)) do
     if line:find("%S") then
@@ -28,6 +17,10 @@ u.empty_attachment_window = function (buf_attach)
   return true
 end
 
+---Format a byte count for compact display.
+---
+---@param bytes integer|nil Size in bytes.
+---@return string formatted Human-readable size, or `—` when size is nil/zero.
 u.format_size = function (bytes)
   if bytes == 0 or bytes == nil then
     return "—"
@@ -42,6 +35,10 @@ u.format_size = function (bytes)
   end
 end
 
+---Check whether a path can be opened for reading.
+---
+---@param path string File path to test.
+---@return boolean exists True when the path can be opened in read mode.
 u.file_exists = function(path)
   local file = io.open(path, 'r')
   if file then
@@ -52,15 +49,14 @@ u.file_exists = function(path)
   end
 end
 
---- Validates that a file path is readable and suitable for attachment
+---Validate that a file path is readable and suitable for attachment.
 ---
---- This function checks if a file exists, is readable, and is a regular file
---- (not a directory or broken symlink). If validation fails, returns false
---- and an error message suitable for user display.
+---This checks that the path can be opened for reading and that libuv reports it
+---as a regular file, not a directory or special file.
 ---
---- @param path string: file path to validate
---- @return boolean: true if file is valid for attachment
---- @return string|nil: error message if validation failed, nil if successful
+---@param path string File path to validate.
+---@return boolean valid True when the file is readable and attachable.
+---@return string|nil err Error message when validation fails.
 u.validate_attachment_file = function(path)
   -- Attempt to open file for reading
   local file, err = io.open(path, 'r')
@@ -84,16 +80,15 @@ u.validate_attachment_file = function(path)
   return true, nil
 end
 
--- there is a better way to do this !!!
--- Splits a string given a delimiter
+-- Collect all substrings in `s` that match a Lua pattern.
 --
--- This function takes in a string and splits it into a table of strings based
--- on some delimiter given by the caller, and returns the result table.
+-- Despite the historical name, `delim` is passed directly to `string.gmatch` as
+-- the match pattern. It should describe the entries to return, not the separator
+-- to discard.
 --
----@param s string: input string
----@param delim string: delimiter string (can be char or more complex)
---
----@return out table: table of strings as split by the function given delim
+---@param s string Input string.
+---@param delim string Lua pattern used to match returned entries.
+---@return string[] entries Substrings matched by `delim`.
 u.split = function(s, delim)
   local out = {}
   local i = 1
@@ -104,15 +99,11 @@ u.split = function(s, delim)
   return out
 end
 
--- Splits a string by a given length
+-- Split a string into fixed-width chunks.
 --
--- This function takes in a string and splits it into a table of strings based
--- on some length given by the caller, and returns the result table.
---
----@param s string: input string
----@param length integer: length integer
---
----@return out table: table of strings as split by the function given length
+---@param s string Input string.
+---@param length integer Maximum chunk length.
+---@return string[] chunks Chunks of `s`, preserving order.
 u.split_length = function(s, length)
   local out = {}
 
@@ -123,16 +114,11 @@ u.split_length = function(s, length)
   return out
 end
 
--- Indents the header line of a message based on its depth
+-- Prefix a message header line with a visual marker for its reply depth.
 --
--- This function takes in the buffer and line number of a message header, and
--- the depth of the email message in the thread's reply chain. Accordingly the
--- function will prepend the header with special characters to signify its depth
--- to the user in a user friendly way.
---
----@param buf int: id of the buffer containing the message header in question
----@param lineno int: line number of the header which the user wants to indent
----@param depth int: depth of the message in the reply chain of the thread
+---@param buf integer Buffer containing the header line.
+---@param lineno integer 1-based line number to update.
+---@param depth integer Message depth in the thread's reply chain.
 --
 ---@usage
 -- -- See u.process_msgs_in_thread() for invocation example
@@ -144,32 +130,19 @@ local indent_depth = function(buf, lineno, depth)
   v.nvim_buf_set_lines(buf, lineno-1, lineno, true, { s .. line })
 end
 
--- Processes the output of `notmuch show` to user friendly buffer format
+-- Reformat legacy `notmuch show` text output in-place for the mail buffer.
 --
--- This function iterates over the lines of the buffer `buf`, identifying and
--- transforming lines matching certain patterns typically found in `notmuch`
--- message output. Relevant details of each message are extracted and headers
--- are modified for better readability and navigation through logical folds in
--- Neovim.
+-- This scans a buffer containing raw text output with markers such as
+-- `message{`, `header{`, and `message}`. It removes structural noise, inserts
+-- fold markers, and indents message headers by reply depth.
 --
----@param buf: The buffer id where the message content is located.
+---@param buf integer Buffer containing legacy `notmuch show` text output.
+---@return nil
 --
--- Behavior:
--- - Identifies lines starting with "message{", extracting metadata.
--- - Inserts structural navigation markers "{{{" and "}}}" for message folds.
--- - Deletes unnecessary line information such as envelope or parts detail,
--- 
--- Side Effects:
--- - Modifies the passed `buf` in place by adding, removing, or changing lines of text.
--- - Adds folding marks "{{{" and "}}}" for smooth folding and chaining.
--- - Indents (using `indent_depth()`) based on each msg's depth in reply chain
---
--- Usage Warning:
--- - Expects a valid Neovim buffer with `notmuch` formatted messages.
--- - Subject to change based on format of `notmuch-show` raw output
--- - Designed for synchronous message processing
---   - As of now this is fine, there is no notable performance degradation
---   - If threads are much larger, might need to explore async funcs
+-- Side effects:
+-- - Mutates `buf` in-place by adding, removing, and replacing lines.
+-- - Adds fold markers `{{{` and `}}}` for message navigation.
+-- - Uses synchronous buffer edits and the current window's line APIs.
 u.process_msgs_in_thread = function(buf)
   -- Loop over each line in the buffer and clean up the message output format
   local msg = {} -- Table which stores id, depth, file of a message
@@ -223,13 +196,13 @@ u.process_msgs_in_thread = function(buf)
   end
 end
 
--- Retrieves the id of the message under cursor
+-- Return the notmuch message id for the message under the cursor.
 --
--- This function fetches the id of the message being viewed under the cursor by
--- iteratively scanning each line backwards for the `id:` field. If used
--- incorrectly or no id is found, a helpful message will indicate the same
+-- The search walks upward from the cursor until it finds a fold marker line of
+-- the form `id:<message-id> {{{`. If no marker is found, it prints a message and
+-- returns nil.
 --
----@return id int: id of the email messageo
+---@return string|nil id Message id without the `id:` prefix, or nil when not found.
 --
 ---@usage
 -- local id = require('notmuch.util').find_cursor_msg_id()

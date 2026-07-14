@@ -7,18 +7,16 @@ local thread = require('notmuch.thread')
 local v = vim.api
 
 
--- Prompt confirmation for sending an email
+-- Prompt the user to confirm sending the current draft.
 --
--- This function utilizes vim's builtin `confirm()` to prompt the user and
--- confirm the action of sending an email. This is applicable for sending newly
--- composed mails or replies by passing the mail file path.
---
----@param filename string: path to the email message you would like to send
+---@return boolean confirmed True when the user selects Yes.
 --
 ---@usage
 --   -- See reply() or compose()
 --   vim.keymap.set('n', '<C-c><C-c>', function()
---     confirm_sendmail(reply_filename)
+--     if confirm_sendmail() then
+--       send_draft(buf, draft)
+--     end
 --   end, { buffer = true })
 local confirm_sendmail = function()
   local choice = v.nvim_call_function('confirm', {
@@ -123,20 +121,15 @@ local build_send_file = function(buf, attachment_paths)
   return send_filename
 end
 
--- Send a completed message
+-- Send a completed message through `msmtp` in an interactive terminal split.
 --
--- This function takes a file containing a completed message and send it to the
--- recipient(s) using `msmtp`. Typically you will invoke this function after
--- confirming from a reply or newly composed email message. The invocation of
--- `msmtp` determines by itself the recipient and the sender.
+-- The message file is passed to `msmtp -t --read-envelope-from`. The terminal is
+-- kept interactive so `msmtp` can prompt for credentials if needed. Completion is
+-- reported asynchronously through optional callbacks.
 --
--- If the configuration `config.options.logfile` is set, then it invokes
--- `msmtp` with logging capability to that file. Otherwise, it logs to
--- temporary file.
---
----@param filename string: path to the email message you would like to send
---
----@return string: The log message provided by `msmtp`
+---@param filename string Path to the RFC 5322/MIME message file to send.
+---@param opts? { on_success?: fun(), on_failure?: fun(exit_code: integer) } Optional completion callbacks.
+---@return boolean ok True when the terminal send job was started, false when the message file is missing.
 --
 ---@usage
 --   require('notmuch.send').sendmail('/tmp/my_new_email.eml')
@@ -307,7 +300,7 @@ end
 -- message headers and body. The mail content is stored in the persistent drafts
 -- directory so the user can come back to it later if needed.
 --
----@param to string: recipient address (optionaal argument)
+---@param to? string Optional recipient address list used to prefill the `To:` header.
 --
 ---@usage
 --   -- Typically you can run this with `:ComposeMail` or pressing `C`

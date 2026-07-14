@@ -36,12 +36,57 @@ end
 
 return {
   {
-    name = "handlers.default_open_handler invokes OS opener detached",
+    name = "handlers.default_open_handler uses vim.ui.open when available",
     run = function()
       local handlers = require("notmuch.handlers")
+      local old_open = vim.ui.open
+      local opened
+
+      vim.ui.open = function(path)
+        opened = path
+        return { wait = function() return { code = 0 } end }, nil
+      end
+
+      handlers.default_open_handler({ path = "/tmp/file.txt" })
+
+      H.eq("/tmp/file.txt", opened)
+      vim.ui.open = old_open
+    end,
+  },
+  {
+    name = "handlers.default_open_handler reports vim.ui.open failures",
+    run = function()
+      local handlers = require("notmuch.handlers")
+      local old_open = vim.ui.open
+      local old_notify = vim.notify
+      local note
+
+      vim.ui.open = function()
+        return nil, "no opener found"
+      end
+      vim.notify = function(msg, level)
+        note = { msg = msg, level = level }
+      end
+
+      handlers.default_open_handler({ path = "/tmp/file.txt" })
+
+      H.contains(note.msg, "failed to open attachment")
+      H.contains(note.msg, "no opener found")
+      H.eq(vim.log.levels.ERROR, note.level)
+
+      vim.ui.open = old_open
+      vim.notify = old_notify
+    end,
+  },
+  {
+    name = "handlers.default_open_handler falls back to OS opener without vim.ui.open",
+    run = function()
+      local handlers = require("notmuch.handlers")
+      local old_open = vim.ui.open
       local old_system = vim.system
       local captured_cmd, captured_opts
 
+      vim.ui.open = nil
       vim.system = function(cmd, opts)
         captured_cmd = cmd
         captured_opts = opts
@@ -59,6 +104,7 @@ return {
       H.same({ expected, "/tmp/file.txt" }, captured_cmd)
       H.same({ detach = true }, captured_opts)
 
+      vim.ui.open = old_open
       vim.system = old_system
     end,
   },
